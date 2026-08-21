@@ -206,6 +206,31 @@ const App = {
       this.showApp();
     } else {
       this.renderLogin();
+      this.initLoginForm();
+    }
+  },
+
+  initLoginForm() {
+    const form = document.getElementById('login-form');
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleLogin();
+      });
+    }
+    document.querySelectorAll('.demo-user-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        handleDemoLogin(btn.dataset.email, btn.dataset.password);
+      });
+    });
+    const togglePwd = document.querySelector('.toggle-password');
+    if (togglePwd) {
+      togglePwd.addEventListener('click', () => {
+        const input = document.getElementById('login-pwd');
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        togglePwd.classList.toggle('active', !isPassword);
+      });
     }
   },
 
