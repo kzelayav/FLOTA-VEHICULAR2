@@ -400,203 +400,72 @@ const AssetsModule = {
     showToast('Plantilla descargada correctamente', 'success');
   },
 
-  async importExcel(event) {
-    const input = event.target;
-    const file = input?.files?.[0];
+  importExcel(event) {
+    const file = event.target.files[0];
     if (!file) return;
-    if (this._importing) { showToast('Importación en curso...', 'warning'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-    this._importing = true;
-    input.disabled = true;
+        if (json.length === 0) { showToast('El archivo está vacío o tiene un formato incorrecto', 'error'); return; }
 
-    try {
-      const json = await this._readExcelFile(file);
-      const validation = this._validateImportRows(json);
+        let imported = 0;
+        const pending = [];
+        json.forEach(row => {
+          const code = row['Código'] || row['Codigo'] || row['CODE'];
+          const type = row['Tipo'] || row['Type'] || 'Desconocido';
+          if (!code) return;
 
-      if (validation.validRows.length === 0) {
-        showToast('No se encontraron filas válidas para importar', 'error');
-        return;
-      }
+          const newAsset = {
+            id: DB.newId(),
+            code: String(code).trim(),
+            type: String(type).trim(),
+            brand: String(row['Marca'] || row['Brand'] || ''),
+            model: String(row['Modelo'] || row['Model'] || ''),
+            year: parseInt(row['Año'] || row['Year'] || new Date().getFullYear()) || new Date().getFullYear(),
+            plate: String(row['Placa'] || row['Plate'] || ''),
+            serial: String(row['Número de Serie'] || row['Serie'] || row['Serial'] || ''),
+            location: String(row['Ubicación'] || row['Location'] || row['Planta'] || ''),
+            area: String(row['Área'] || row['Area'] || ''),
+            localidad: String(row['Localidad'] || ''),
+            departamento: String(row['Departamento'] || ''),
+            usuario: String(row['Usuario'] || ''),
+            responsible: String(row['Responsable'] || row['Responsible'] || ''),
+            status: String(row['Estado'] || row['Status'] || 'operativo').toLowerCase(),
+            currentKm: parseFloat(row['Kilometraje'] || row['Km'] || 0),
+            currentHours: parseFloat(row['Horómetro'] || row['Hours'] || 0),
+            inspectionDate: row['Inspección (Fecha vencimiento)'] || row['Inspección'] || row['InspectionDate'] || '',
+            notes: String(row['Notas'] || row['Notes'] || ''),
+            createdAt: new Date().toISOString()
+          };
 
-      if (validation.invalidRecords.length > 0 || validation.warnings.length > 0) {
-        const msg = `Se importarán ${validation.validRows.length} filas. ${validation.invalidRecords.length} rechazadas. ${validation.warnings.length} advertencias. ¿Continuar?`;
-        if (!confirm(msg)) return;
-      }
+          if (!['operativo','mantenimiento','fuera'].includes(newAsset.status)) newAsset.status = 'operativo';
+          pending.push(newAsset);
+          imported++;
+        });
 
-      const result = await DB.bulkAddAssets(validation.validRows);
+        if (pending.length) DB.bulkAddAssets(pending);
 
-      const totalConfirmed = result.totalConfirmed;
-      const totalPersistenceRejected = result.totalPersistenceRejected;
-      const totalPending = result.totalPending;
-      const totalInvalid = validation.invalidRecords.length;
-      const totalEmpty = validation.totalEmpty;
-      const totalSourceRows = validation.totalEmpty + validation.totalReceived;
-
-      if (totalConfirmed > 0) {
-        DB.addAudit({ user: Auth.getSession()?.name || '', action: 'IMPORT', detail: `Importados ${totalConfirmed} activos` });
-      }
-
-      let message = '';
-      if (totalConfirmed > 0 && totalPersistenceRejected === 0 && validation.invalidRecords.length === 0) {
-        message = `Importación exitosa: ${totalConfirmed} activos cargados`;
-      } else if (totalConfirmed > 0) {
-        message = `Importación parcial: ${result.totalConfirmed} confirmados, ${validation.invalidRecords.length} inválidos, ${result.totalPersistenceRejected} fallaron, ${result.totalPending} pendientes.`;
-      } else {
-        message = 'No se pudo importar ningún activo.';
-      }
-
-      const toastType = totalConfirmed > 0 ? (totalPersistenceRejected === 0 && validation.invalidRecords.length === 0 ? 'success' : 'warning') : 'error';
-      showToast(message, toastType);
-
-      if (totalConfirmed > 0) {
-        DB.addAudit({ user: Auth.getSession()?.name || '', action: 'IMPORT', detail: `Importados ${totalConfirmed} activos` });
-      }
-
-      document.getElementById('assets-content').innerHTML = this.renderContent();
-
-    } catch (err) {
-      console.error('[Import] Error:', err);
-      showToast(err.message || 'Error en importación masiva', 'error');
-    } finally {
-      this._importing = false;
-      input.disabled = false;
-      input.value = '';
-    }
-  },
-
-  _readExcelFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-          resolve(json);
-        } catch (err) {
-          reject(err);
+        if (imported > 0) {
+          DB.addAudit({ user:Auth.getSession()?.name||'', action:'CREATE', detail:`Importación masiva: ${imported} activos cargados` });
+          showToast(`Importación exitosa: ${imported} activos cargados`, 'success');
+          document.getElementById('assets-content').innerHTML = this.renderContent();
+        } else {
+          showToast('No se encontraron datos válidos para importar', 'error');
         }
-      };
-      reader.onerror = () => reject(new Error('Error leyendo archivo'));
-      reader.readAsArrayBuffer(file);
-    });
+      } catch (err) {
+        console.error('Error importando excel:', err);
+        showToast('Error procesando el archivo: ' + err.message, 'error');
+      }
+      event.target.value = ''; // reset input
+    };
+    reader.readAsArrayBuffer(file);
   },
-
-  _validateImportRows(json) {
-    const validRows = [];
-    const invalidRecords = [];
-    const warnings = [];
-    let totalEmpty = 0;
-    let rowNum = 0;
-
-    const seenCodes = new Set();
-
-    json.forEach(row => {
-      rowNum++;
-      if (this._isEmptyRow(row)) {
-        return; // skip empty rows
-      }
-
-      const code = row['Código'] || row['Codigo'] || row['CODE'];
-      const type = row['Tipo'] || row['Type'] || '';
-      const brand = row['Marca'] || row['Brand'] || '';
-      const model = row['Modelo'] || row['Model'] || '';
-      const yearRaw = row['Año'] || row['Year'] || '';
-      const plate = row['Placa'] || row['Plate'] || '';
-      const serial = row['Número de Serie'] || row['Serie'] || row['Serial'] || '';
-      const location = row['Ubicación'] || row['Location'] || row['Planta'] || '';
-      const area = row['Área'] || row['Area'] || '';
-      const localidad = row['Localidad'] || '';
-      const departamento = row['Departamento'] || '';
-      const usuario = row['Usuario'] || '';
-      const responsible = row['Responsable'] || row['Responsible'] || '';
-      const statusRaw = row['Estado'] || row['Status'] || '';
-      const kmRaw = row['Kilometraje'] || row['Km'] || 0;
-      const hoursRaw = row['Horómetro'] || row['Hours'] || 0;
-      const inspectionRaw = row['Inspección (Fecha vencimiento)'] || row['Inspección'] || row['InspectionDate'] || '';
-      const notes = row['Notas'] || row['Notes'] || '';
-
-      const errors = [];
-      const warnings = [];
-
-      if (!type || !type.trim()) errors.push('Tipo obligatorio');
-      if (!brand || !brand.trim()) errors.push('Marca obligatoria');
-      if (!model || !model.trim()) errors.push('Modelo obligatorio');
-
-      const yearResult = DB._validateYear(yearRaw);
-      if (!yearResult.valid) errors.push(yearResult.error);
-      else if (yearResult.warnings.length) warnings.push({ row: rowNum, message: yearResult.warnings[0] });
-
-      const km = parseFloat(kmRaw) || 0;
-      if (km < 0) errors.push('Kilometraje no puede ser negativo');
-
-      const hours = parseFloat(hoursRaw) || 0;
-      if (hours < 0) errors.push('Horómetro no puede ser negativo');
-
-      const statusResult = DB._validateStatus(statusRaw);
-      if (!statusResult.valid) errors.push(statusResult.error);
-
-      const inspectionDate = DB._parseExcelDate(inspectionRaw);
-      if (inspectionRaw && !inspectionDate) {
-        warnings.push({ row: rowNum, field: 'inspectionDate', message: 'Fecha inválida, se guardará vacía' });
-      }
-
-      if (errors.length > 0) {
-        invalidRecords.push({ row: rowNum, code: code || 'SIN_CODIGO', errors });
-        return;
-      }
-
-      const normalizedCode = DB._normalizeAssetCode(code);
-      if (seenCodes.has(normalizedCode)) {
-        invalidRecords.push({ row: rowNum, code: code, message: 'Duplicado en archivo' });
-        return;
-      }
-      seenCodes.add(normalizedCode);
-
-      if (DB._cache.assets.some(a => DB._normalizeAssetCode(a.code) === normalizedCode)) {
-        invalidRecords.push({ row: rowNum, code: code, message: 'Código ya existe en BD' });
-        return;
-      }
-
-      validRows.push({
-        id: DB.newId(),
-        code: code.trim(),
-        type: type.trim(),
-        brand: brand.trim(),
-        model: model.trim(),
-        year: yearResult.valid ? yearResult.value : new Date().getFullYear(),
-        plate: plate.trim(),
-        serial: serial.trim(),
-        location: location.trim(),
-        area: area.trim(),
-        localidad: localidad.trim(),
-        departamento: departamento.trim(),
-        usuario: usuario.trim(),
-        responsible: responsible.trim(),
-        status: statusResult.value,
-        currentKm: km,
-        currentHours: hours,
-        inspectionDate: inspectionDate,
-        notes: notes.trim(),
-        createdAt: new Date().toISOString()
-      });
-      if (warnings.length) warnings.push({ row: rowNum, message: warnings[0] });
-    });
-
-    return { validRows, invalidRecords, warnings, totalEmpty: emptyCount, totalReceived: validRows.length + invalidRecords.length, totalInvalid: invalidRecords.length, totalValid: validRows.length };
-  },
-
-  _isEmptyRow(row) {
-    return Object.values(row).every(v => {
-      if (v === null || v === undefined) return true;
-      if (typeof v === 'string') return v.trim() === '';
-      return false;
-    });
-  },
-
-  _importing: false,
 
   viewDetail(id) {
     const a = DB.getAsset(id);
