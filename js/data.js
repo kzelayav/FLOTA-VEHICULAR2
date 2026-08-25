@@ -702,19 +702,56 @@ newId() {
   addAlerta(obj) {
     obj.id = obj.id || this.newId();
     obj.createdAt = obj.createdAt || new Date().toISOString();
-    this._cache.alerts.push(obj);
-    this._syncUpsertRow('alertas', this._toAlertRow(obj), 'alerts');
-    return obj;
+    return this._enqueueRecord('alerts', obj.id, async () => {
+      if (this._cache.alerts.some(a => a.id === obj.id)) {
+        throw new Error('addAlerta: id duplicado: ' + obj.id);
+      }
+      const record = { ...obj };
+      this._cache.alerts.push(record);
+      try {
+        await this._persistInsert('alerts', 'alertas', record, this._toAlertRow.bind(this));
+        return record;
+      } catch (err) {
+        const idx = this._cache.alerts.findIndex(r => r.id === obj.id);
+        if (idx >= 0) this._cache.alerts.splice(idx, 1);
+        throw err;
+      }
+    });
   },
   updateAlerta(id, d) {
-    const i = this._cache.alerts.findIndex(x => x.id === id);
-    if (i < 0) return;
-    this._cache.alerts[i] = { ...this._cache.alerts[i], ...d, updatedAt: new Date().toISOString() };
-    this._syncUpsertRow('alertas', this._toAlertRow(this._cache.alerts[i]), 'alerts');
+    return this._enqueueRecord('alerts', id, async () => {
+      const idx = this._cache.alerts.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('updateAlerta: alerta no encontrada: ' + id);
+      const previous = { ...this._cache.alerts[idx] };
+      this._cache.alerts[idx] = { ...previous, ...d, updatedAt: new Date().toISOString() };
+      try {
+        await this._persistUpdate('alerts', 'alertas', this._cache.alerts[idx], this._toAlertRow.bind(this));
+      } catch (err) {
+        const currentIdx = this._cache.alerts.findIndex(r => r.id === id);
+        if (currentIdx >= 0) {
+          this._cache.alerts[currentIdx] = previous;
+        }
+        throw err;
+      }
+    });
   },
   deleteAlerta(id) {
-    this._cache.alerts = this._cache.alerts.filter(x => x.id !== id);
-    this._syncDeleteRow('alertas', id, 'alerts');
+    return this._enqueueRecord('alerts', id, async () => {
+      const idx = this._cache.alerts.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('deleteAlerta: alerta no encontrada: ' + id);
+      const deleted = { ...this._cache.alerts[idx] };
+      const originalIndex = idx;
+      this._cache.alerts.splice(idx, 1);
+      try {
+        await this._persistDelete('alertas', 'alertas', id);
+      } catch (err) {
+        if (!this._cache.alerts.some(r => r.id === id)) {
+          const safeIdx = Math.min(originalIndex, this._cache.alerts.length);
+          this._cache.alerts.splice(safeIdx, 0, deleted);
+        }
+        throw err;
+      }
+    });
   },
   clearAlertas() {
     this._cache.alerts = [];
