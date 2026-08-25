@@ -226,7 +226,12 @@ const DB = {
   },
 
   _seedData() {
-    const users = [];
+    const users = [
+      { id: 'u1', name: 'Administrador Sistema', email: 'admin@flota.com', password: 'admin123', role: 'admin', avatar: 'AS', active: true },
+      { id: 'u2', name: 'Angie Mendoza', email: 'AngieMendoza@flota.com', password: '1234', role: 'supervisor', avatar: 'AM', active: true },
+      { id: 'u3', name: 'Julissa Gonzalez', email: 'JulissaGonzalez@flota.com', password: '1234', role: 'supervisor', avatar: 'JG', active: true },
+      { id: 'u4', name: 'Sonia Moreno', email: 'SoniaMoreno@flota.com', password: '1234', role: 'supervisor', avatar: 'SM', active: true }
+    ];
     const assets = [];
     const preventive = [];
     const corrective = [];
