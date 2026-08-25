@@ -397,19 +397,56 @@ newId() {
   },
   getAsset(id)       { return this._cache.assets.find(x => x.id === id); },
   async bulkAddAssets(arr) {
-    const ready = [];
-    for (const obj of arr) {
-      obj.id = obj.id || this.newId();
-      obj.createdAt = obj.createdAt || new Date().toISOString();
-      ready.push(obj);
+    if (!Array.isArray(arr) || arr.length === 0) {
+      throw new Error('bulkAddAssets: array vacío o inválido');
     }
-    this._cache.assets = this._cache.assets.concat(ready);
-    if (this.mode === 'supabase' && this.supabase) {
-      await this._async('bulk insert activos', () => this._upsertRows('activos', ready.map(a => this._toAssetRow(a))));
-    } else {
-      this._writeLS('assets');
+
+    const records = arr.map(obj => ({
+      ...obj,
+      id: obj.id || this.newId(),
+      createdAt: obj.createdAt || new Date().toISOString()
+    });
+
+    const batchSize = 50;
+    const confirmed = [];
+    const rejected = [];
+    const errors = [];
+
+    for (let i = 0; i < records.length; i += 50) {
+      const batch = records.slice(i, i + 50);
+      const batchIds = batch.map(r => r.id);
+
+      for (const record of batch) {
+        if (this._cache.assets.some(a => this._normalizeAssetCode(a.code) === this._normalizeAssetCode(record.code) && a.id !== record.id)) {
+          throw new Error('Código duplicado detectado antes de persistir: ' + record.code);
+        }
+      }
+
+      this._cache.assets.push(...batch);
+
+      try {
+        await this._persistAssetBatch(batch);
+        confirmed.push(...batch);
+      } catch (err) {
+        this._cache.assets = this._cache.assets.filter(a => !batchIds.includes(a.id));
+        rejected.push(...batch.map(r => ({ record: r, error: err.message })));
+        errors.push({ batch: Math.floor(i / 50) + 1, error: err.message });
+        break;
+      }
     }
-    return arr;
+
+    return {
+      totalSubmitted: arr.length,
+      totalConfirmed: confirmed.length,
+      totalPersistenceRejected: rejected.length,
+      totalPending: 0,
+      confirmedRecords: confirmed,
+      persistenceRejectedRecords: rejected,
+      pendingRecords: [],
+      errors,
+      mode: this.mode,
+      completedAt: new Date().toISOString()
+    };
   },
 
   /* ====================================================
@@ -929,7 +966,817 @@ _persistDeleteAsset(id) {
     return this._syncDeleteRow('activos', id, 'assets');
   },
 
-  /* â”€â”€ Helpers genéricos de persistencia (reutilizan _enqueueRecord) â”€â”€ */
+  /* â”€â”€ Helpers de validaciÃ³n para importaciÃ³n masiva â”€â”€ */
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  _parseExcelDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'string') {
+      const iso = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const year = parseInt(iso.slice(0, 4), 10);
+        const month = parseInt(iso.slice(5, 7), 10);
+        const day = parseInt(iso.slice(8, 10), 10);
+        const parsedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        if (parsedDate.getUTCFullYear() === year &&
+            parsedDate.getUTCMonth() === month - 1 &&
+            parsedDate.getUTCDate() === day) {
+          return iso;
+        }
+      }
+      return null;
+    }
+
+    if (typeof value === 'number' && value > 0) {
+      const excelEpoch = Date.UTC(1900, 0, 1);
+      const parsedDate = new Date(excelEpoch + (value - 2) * 86400000);
+      return isNaN(parsedDate) ? null : parsedDate.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().split('T')[0];
+    }
+
+    return null;
+  },
+
+  _validateYear(value) {
+    if (value === null || value === undefined || value === '') {
+      return { valid: true, value: null, warnings: [] };
+    }
+    const year = parseInt(value, 10);
+    if (isNaN(year)) return { valid: false, error: 'AÃ±o debe ser numÃ©rico' };
+    const currentYear = new Date().getFullYear();
+    if (year < 1900) return { valid: false, error: 'AÃ±o anterior a 1900' };
+    if (year > new Date().getFullYear() + 1) return { valid: false, error: 'AÃ±o mayor a ' + (new Date().getFullYear() + 1) };
+    const warnings = year < 1950 ? ['AÃ±o anterior a 1950, verifique'] : [];
+    return { valid: true, value: year, warnings };
+  },
+
+  _validateStatus(value) {
+    if (!value) return { valid: true, value: 'operativo' };
+    const normalized = String(value).trim().toLowerCase();
+    if (!['operativo', 'mantenimiento', 'fuera'].includes(normalized)) {
+      return { valid: false, error: 'Estado invÃ¡lido: ' + value + '. Valores: operativo, mantenimiento, fuera' };
+    }
+    return { valid: true, value: normalized };
+  },
+
+  _normalizeAssetCode(value) {
+    return String(value ?? '').trim().toUpperCase();
+  },
+
+  _isEmptyCell(value) {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  },
+
+  _isEmptyRow(row) {
+    if (!row || typeof row !== 'object') return true;
+    return Object.values(row).every(v => this._isEmptyCell(v));
+  },
+
+  /* â”€â”€ Helpers de persistencia para importaciÃ³n masiva de Activos â”€â”€ */
+  _persistAssetRows(batch) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      return this._persistAssetBatchLocal(batch);
+    }
+    const rows = batch.map(r => this._toAssetRow(r));
+    return this._enqueue('activos', async () => {
+      const { error } = await this.supabase.from('activos').upsert(rows, { onConflict: 'id' });
+      if (error) throw error;
+    });
+  },
+
+  _persistAssetBatchLocal(records) {
+    const previous = this._cache.assets.slice();
+    const updated = previous.concat(records);
+    try {
+      const key = this._cacheKeyToLS('assets');
+      if (!key) throw new Error('Clave LocalStorage no configurada');
+      localStorage.setItem(key, JSON.stringify(updated));
+      this._cache.assets = updated;
+      return { success: true, local: true, count: records.length };
+    } catch (err) {
+      this._cache.assets = previous;
+      throw err;
+    }
+  },
+
+  async _persistAssetBatch(records, batchSize = 50) {
+    const confirmed = [];
+    const errors = [];
+
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      const batchIds = batch.map(r => r.id);
+
+      for (const record of batch) {
+        if (this._cache.assets.some(a => this._normalizeAssetCode(a.code) === this._normalizeAssetCode(record.code) && a.id !== record.id)) {
+          throw new Error('CÃ³digo duplicado detectado antes de persistir: ' + record.code);
+        }
+      }
+
+      this._cache.assets.push(...batch);
+
+      try {
+        await this._persistAssetRows(batch);
+        confirmed.push(...batch);
+      } catch (err) {
+        this._cache.assets = this._cache.assets.filter(a => !batchIds.includes(a.id));
+        throw err;
+      }
+    }
+
+    return { confirmed, errors: [] };
+  },
+
+  _persistAssetBatchLocal(records) {
+    const previous = this._cache.assets.slice();
+    const updated = previous.concat(records);
+    try {
+      const key = this._cacheKeyToLS('assets');
+      if (!key) throw new Error('Clave LocalStorage no configurada');
+      localStorage.setItem(key, JSON.stringify(updated));
+      this._cache.assets = updated;
+      return { success: true, local: true, count: records.length };
+    } catch (err) {
+      this._cache.assets = previous;
+      throw err;
+    }
+  },
+
+  async _persistAssetBatch(records, batchSize = 50) {
+    const confirmed = [];
+    const errors = [];
+
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      const batchIds = batch.map(r => r.id);
+
+      for (const record of batch) {
+        if (this._cache.assets.some(a => this._normalizeAssetCode(a.code) === this._normalizeAssetCode(record.code) && a.id !== record.id)) {
+          throw new Error('CÃ³digo duplicado detectado antes de persistir: ' + record.code);
+        }
+      }
+
+      this._cache.assets.push(...batch);
+
+      try {
+        await this._persistAssetRows(batch);
+        confirmed.push(...batch);
+      } catch (err) {
+        this._cache.assets = this._cache.assets.filter(a => !batchIds.includes(a.id));
+        throw err;
+      }
+    }
+
+    return { confirmed, errors: [] };
+  },
+
+  _persistAssetBatchLocal(records) {
+    const previous = this._cache.assets.slice();
+    const updated = previous.concat(records);
+    try {
+      const key = this._cacheKeyToLS('assets');
+      if (!key) throw new Error('Clave LocalStorage no configurada');
+      localStorage.setItem(key, JSON.stringify(updated));
+      this._cache.assets = updated;
+      return { success: true, local: true, count: records.length };
+    } catch (err) {
+      this._cache.assets = previous;
+      throw err;
+    }
+  },
+
+  async _persistAssetBatch(records, batchSize = 50) {
+    const confirmed = [];
+    const errors = [];
+
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      const batchIds = batch.map(r => r.id);
+
+      for (const record of batch) {
+        if (this._cache.assets.some(a => this._normalizeAssetCode(a.code) === this._normalizeAssetCode(record.code) && a.id !== record.id)) {
+          throw new Error('CÃ³digo duplicado detectado antes de persistir: ' + record.code);
+        }
+      }
+
+      this._cache.assets.push(...batch);
+
+      try {
+        await this._persistAssetRows(batch);
+        confirmed.push(...batch);
+      } catch (err) {
+        this._cache.assets = this._cache.assets.filter(a => !batchIds.includes(a.id));
+        throw err;
+      }
+    }
+
+    return { confirmed, errors: [] };
+  },
+
+  _persistAssetBatchLocal(records) {
+    const previous = this._cache.assets.slice();
+    const updated = previous.concat(records);
+    try {
+      const key = this._cacheKeyToLS('assets');
+      if (!key) throw new Error('Clave LocalStorage no configurada');
+      localStorage.setItem(key, JSON.stringify(updated));
+      this._cache.assets = updated;
+      return { success: true, local: true, count: records.length };
+    } catch (err) {
+      this._cache.assets = previous;
+      throw err;
+    }
+  },
+
+  async _persistAssetBatch(records, batchSize = 50) {
+    const confirmed = [];
+    const errors = [];
+
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      const batchIds = batch.map(r => r.id);
+
+      for (const record of batch) {
+        if (this._cache.assets.some(a => this._normalizeAssetCode(a.code) === this._normalizeAssetCode(record.code) && a.id !== record.id)) {
+          throw new Error('CÃ³digo duplicado detectado antes de persistir: ' + record.code);
+        }
+      }
+
+      this._cache.assets.push(...batch);
+
+      try {
+        await this._persistAssetRows(batch);
+        confirmed.push(...batch);
+      } catch (err) {
+        this._cache.assets = this._cache.assets.filter(a => !batchIds.includes(a.id));
+        throw err;
+      }
+    }
+
+    return { confirmed, errors: [] };
+  },
+
+  _persistAssetBatchLocal(records) {
+    const previous = this._cache.assets.slice();
+    const updated = previous.concat(records);
+    try {
+      const key = this._cacheKeyToLS('assets');
+      if (!key) throw new Error('Clave LocalStorage no configurada');
+      localStorage.setItem(key, JSON.stringify(updated));
+      this._cache.assets = updated;
+      return { success: true, local: true, count: records.length };
+    } catch (err) {
+      this._cache.assets = previous;
+      throw err;
+    }
+  },
+
+  async _persistAssetBatch(records, batchSize = 50) {
+    const confirmed = [];
+    const errors = [];
+
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      const batchIds = batch.map(r => r.id);
+
+      for (const record of batch) {
+        if (this._cache.assets.some(a => this._normalizeAssetCode(a.code) === this._normalizeAssetCode(record.code) && a.id !== record.id)) {
+          throw new Error('CÃ³digo duplicado detectado antes de persistir: ' + record.code);
+        }
+      }
+
+      this._cache.assets.push(...batch);
+
+      try {
+        await this._persistAssetRows(batch);
+        confirmed.push(...batch);
+      } catch (err) {
+        this._cache.assets = this._cache.assets.filter(a => !batchIds.includes(a.id));
+        throw err;
+      }
+    }
+
+    return { confirmed, errors: [] };
+  },
+
+  _persistAssetBatchLocal(records) {
+    const previous = this._cache.assets.slice();
+    const updated = previous.concat(records);
+    try {
+      const key = this._cacheKeyToLS('assets');
+      if (!key) throw new Error('Clave LocalStorage no configurada');
+      localStorage.setItem(key, JSON.stringify(updated));
+      this._cache.assets = updated;
+      return { success: true, local: true, count: records.length };
+    } catch (err) {
+      this._cache.assets = previous;
+      throw err;
+    }
+  },
+
+  /* â”€â”€ Helpers genÃ©ricos de persistencia (reutilizan _enqueueRecord) â”€â”€ */
   _persistInsert(collection, table, record, toRowFn, extraFields = {}) {
     if (this.mode !== 'supabase' || !this.supabase) {
       this._writeLSStrict(collection);
