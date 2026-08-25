@@ -54,6 +54,8 @@ const DB = {
   _ready: null,
   _lastAlertSig: '',
   _cache: null,
+  _queue: new Map(),  // Cola Promise por colección: _queue[colección] = Promise
+  _recordQueues: new Map(),  // Cola Promise por registro: _recordQueues['collection:id'] = Promise
 
   /* â”€â”€ Helpers genéricos (compatibilidad) â”€â”€ */
   get(key) {
@@ -75,8 +77,62 @@ const DB = {
   },
 
   /* â”€â”€ ID generator â”€â”€ */
-  newId() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+newId() {
+    return crypto.randomUUID();
+  },
+
+  /* â”€â”€ Cola Promise por colección â”€â”€ */
+  _enqueue(coll, task) {
+    const queue = this._queue.get(coll) || Promise.resolve();
+    const next = queue.then(
+      () => task(),
+      (err) => {
+        // Absorber el error anterior para permitir la siguiente operación
+        // El error original ya fue propagado a su caller
+        return task();
+      }
+    );
+    this._queue.set(coll, next);
+    return next;
+  },
+
+  /* â”€â”€ Cola Promise por registro (serialización completa por activo) â”€â”€ */
+  _enqueueRecord(collection, recordId, task) {
+    const key = collection + ':' + recordId;
+    const prevQueue = this._recordQueues.get(key) || Promise.resolve();
+
+    let opResolve, opReject;
+    const opPromise = new Promise((resolve, reject) => {
+      opResolve = resolve;
+      opReject = reject;
+    });
+
+    let neutralResolve;
+    const neutralPromise = new Promise((resolve) => {
+      neutralResolve = resolve;
+    });
+
+    const runTask = prevQueue.then(async () => {
+      try {
+        const result = await task();
+        opResolve(result);
+      } catch (err) {
+        opReject(err);
+      } finally {
+        neutralResolve();
+      }
+    });
+
+    this._recordQueues.set(key, neutralPromise);
+
+    runTask.finally(() => {
+      const current = this._recordQueues.get(key);
+      if (current === neutralPromise) {
+        this._recordQueues.delete(key);
+      }
+    });
+
+    return opPromise;
   },
 
   /* ====================================================
@@ -133,9 +189,7 @@ const DB = {
       .then(fn)
       .catch(err => {
         console.error(`[DB] ${tag} â†’`, err);
-        if (typeof showToast === 'function') {
-          showToast('Error de sincronización con Supabase', 'error');
-        }
+        throw err; // Propagar error al caller
       });
   },
 
@@ -277,21 +331,69 @@ const DB = {
   getAssets()        { return this._cache.assets; },
   saveAssets(arr)    { this._cache.assets = arr || []; this._syncReplace('assets'); },
   addAsset(obj) {
-    obj.id = obj.id || this.newId();
-    obj.createdAt = obj.createdAt || new Date().toISOString();
-    this._cache.assets.push(obj);
-    this._syncUpsertRow('activos', this._toAssetRow(obj), 'assets');
-    return obj;
+    if (!obj || !obj.code || !obj.type || !obj.brand || !obj.model) {
+      throw new Error('addAsset: campos requeridos faltantes (code, type, brand, model)');
+    }
+    const id = obj.id || this.newId();
+    const code = obj.code;
+
+    return this._enqueueRecord('assets', id, async () => {
+      if (this._cache.assets.some(a => a.code === code)) {
+        throw new Error('addAsset: código duplicado: ' + code);
+      }
+      if (this._cache.assets.some(a => a.id === id)) {
+        throw new Error('addAsset: id duplicado: ' + id);
+      }
+      const record = {
+        ...obj,
+        id,
+        createdAt: obj.createdAt || new Date().toISOString()
+      };
+      this._cache.assets.push(record);
+      try {
+        await this._persistInsertAsset(record);
+        return record;
+      } catch (err) {
+        const idx = this._cache.assets.findIndex(r => r.id === id);
+        if (idx >= 0) this._cache.assets.splice(idx, 1);
+        throw err;
+      }
+    });
   },
   updateAsset(id, d) {
-    const i = this._cache.assets.findIndex(x => x.id === id);
-    if (i < 0) return;
-    this._cache.assets[i] = { ...this._cache.assets[i], ...d, updatedAt: new Date().toISOString() };
-    this._syncUpsertRow('activos', this._toAssetRow(this._cache.assets[i]), 'assets');
+    return this._enqueueRecord('assets', id, async () => {
+      const idx = this._cache.assets.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('updateAsset: activo no encontrado: ' + id);
+      const previous = { ...this._cache.assets[idx] };
+      this._cache.assets[idx] = { ...previous, ...d, updatedAt: new Date().toISOString() };
+      try {
+        await this._persistUpdateAsset(this._cache.assets[idx]);
+      } catch (err) {
+        const currentIdx = this._cache.assets.findIndex(r => r.id === id);
+        if (currentIdx >= 0) {
+          this._cache.assets[currentIdx] = previous;
+        }
+        throw err;
+      }
+    });
   },
   deleteAsset(id) {
-    this._cache.assets = this._cache.assets.filter(x => x.id !== id);
-    this._syncDeleteRow('activos', id, 'assets');
+    return this._enqueueRecord('assets', id, async () => {
+      const idx = this._cache.assets.findIndex(a => a.id === id);
+      if (idx < 0) throw new Error('deleteAsset: activo no encontrado: ' + id);
+      const deleted = { ...this._cache.assets[idx] };
+      const originalIndex = idx;
+      this._cache.assets.splice(idx, 1);
+      try {
+        await this._persistDeleteAsset(id);
+      } catch (err) {
+        if (!this._cache.assets.some(r => r.id === id)) {
+          const safeIdx = Math.min(originalIndex, this._cache.assets.length);
+          this._cache.assets.splice(safeIdx, 0, deleted);
+        }
+        throw err;
+      }
+    });
   },
   getAsset(id)       { return this._cache.assets.find(x => x.id === id); },
   async bulkAddAssets(arr) {
@@ -642,6 +744,38 @@ const DB = {
     const key = this._cacheKeyToLS(ck);
     if (!key) return;
     try { localStorage.setItem(key, JSON.stringify(this._cache[ck] || [])); } catch (e) { console.error(e); }
+  },
+
+  /* â”€â”€ Escritura LocalStorage estricta para helpers con rollback (propaga errores) â”€â”€ */
+  _writeLSStrict(ck) {
+    const key = this._cacheKeyToLS(ck);
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify(this._cache[ck] || []));
+  },
+
+  /* â”€â”€ Persistencia según modo para helpers de Activos (evita duplicar _sync*) â”€â”€ */
+  _persistInsertAsset(record) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      this._writeLSStrict('assets');
+      return Promise.resolve({ success: true, local: true });
+    }
+    return this._syncUpsertRow('activos', this._toAssetRow(record), 'assets');
+  },
+
+  _persistUpdateAsset(record) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      this._writeLSStrict('assets');
+      return Promise.resolve({ success: true, local: true });
+    }
+    return this._syncUpsertRow('activos', this._toAssetRow(record), 'assets');
+  },
+
+  _persistDeleteAsset(id) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      this._writeLSStrict('assets');
+      return Promise.resolve({ success: true, local: true });
+    }
+    return this._syncDeleteRow('activos', id, 'assets');
   },
 
   /* ====================================================
