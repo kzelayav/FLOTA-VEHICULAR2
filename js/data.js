@@ -420,19 +420,56 @@ newId() {
   addPreventive(obj) {
     obj.id = obj.id || this.newId();
     obj.createdAt = obj.createdAt || new Date().toISOString();
-    this._cache.preventive.push(obj);
-    this._syncUpsertRow('mantenimientos', { ...this._toPreventiveRow(obj), tipo: 'preventivo' }, 'preventive');
-    return obj;
+    return this._enqueueRecord('preventive', obj.id, async () => {
+      if (this._cache.preventive.some(a => a.id === obj.id)) {
+        throw new Error('addPreventive: id duplicado: ' + obj.id);
+      }
+      const record = { ...obj };
+      this._cache.preventive.push(record);
+      try {
+        await this._persistInsert('preventive', 'mantenimientos', record, this._toPreventiveRow.bind(this), { tipo: 'preventivo' });
+        return record;
+      } catch (err) {
+        const idx = this._cache.preventive.findIndex(r => r.id === obj.id);
+        if (idx >= 0) this._cache.preventive.splice(idx, 1);
+        throw err;
+      }
+    });
   },
   updatePreventive(id, d) {
-    const i = this._cache.preventive.findIndex(x => x.id === id);
-    if (i < 0) return;
-    this._cache.preventive[i] = { ...this._cache.preventive[i], ...d, updatedAt: new Date().toISOString() };
-    this._syncUpsertRow('mantenimientos', { ...this._toPreventiveRow(this._cache.preventive[i]), tipo: 'preventivo' }, 'preventive');
+    return this._enqueueRecord('preventive', id, async () => {
+      const idx = this._cache.preventive.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('updatePreventive: mantenimiento no encontrado: ' + id);
+      const previous = { ...this._cache.preventive[idx] };
+      this._cache.preventive[idx] = { ...previous, ...d, updatedAt: new Date().toISOString() };
+      try {
+        await this._persistUpdate('preventive', 'mantenimientos', this._cache.preventive[idx], this._toPreventiveRow.bind(this), { tipo: 'preventivo' });
+      } catch (err) {
+        const currentIdx = this._cache.preventive.findIndex(r => r.id === id);
+        if (currentIdx >= 0) {
+          this._cache.preventive[currentIdx] = previous;
+        }
+        throw err;
+      }
+    });
   },
   deletePreventive(id) {
-    this._cache.preventive = this._cache.preventive.filter(x => x.id !== id);
-    this._syncDeleteRow('mantenimientos', id, 'preventive');
+    return this._enqueueRecord('preventive', id, async () => {
+      const idx = this._cache.preventive.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('deletePreventive: mantenimiento no encontrado: ' + id);
+      const deleted = { ...this._cache.preventive[idx] };
+      const originalIndex = idx;
+      this._cache.preventive.splice(idx, 1);
+      try {
+        await this._persistDelete('preventive', 'mantenimientos', id);
+      } catch (err) {
+        if (!this._cache.preventive.some(r => r.id === id)) {
+          const safeIdx = Math.min(originalIndex, this._cache.preventive.length);
+          this._cache.preventive.splice(safeIdx, 0, deleted);
+        }
+        throw err;
+      }
+    });
   },
 
   /* ====================================================
@@ -443,19 +480,56 @@ newId() {
   addCorrective(obj) {
     obj.id = obj.id || this.newId();
     obj.createdAt = obj.createdAt || new Date().toISOString();
-    this._cache.corrective.push(obj);
-    this._syncUpsertRow('mantenimientos', { ...this._toCorrectiveRow(obj), tipo: 'correctivo' }, 'corrective');
-    return obj;
+    return this._enqueueRecord('corrective', obj.id, async () => {
+      if (this._cache.corrective.some(a => a.id === obj.id)) {
+        throw new Error('addCorrective: id duplicado: ' + obj.id);
+      }
+      const record = { ...obj };
+      this._cache.corrective.push(record);
+      try {
+        await this._persistInsert('corrective', 'mantenimientos', record, this._toCorrectiveRow.bind(this), { tipo: 'correctivo' });
+        return record;
+      } catch (err) {
+        const idx = this._cache.corrective.findIndex(r => r.id === obj.id);
+        if (idx >= 0) this._cache.corrective.splice(idx, 1);
+        throw err;
+      }
+    });
   },
   updateCorrective(id, d) {
-    const i = this._cache.corrective.findIndex(x => x.id === id);
-    if (i < 0) return;
-    this._cache.corrective[i] = { ...this._cache.corrective[i], ...d, updatedAt: new Date().toISOString() };
-    this._syncUpsertRow('mantenimientos', { ...this._toCorrectiveRow(this._cache.corrective[i]), tipo: 'correctivo' }, 'corrective');
+    return this._enqueueRecord('corrective', id, async () => {
+      const idx = this._cache.corrective.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('updateCorrective: correctivo no encontrado: ' + id);
+      const previous = { ...this._cache.corrective[idx] };
+      this._cache.corrective[idx] = { ...previous, ...d, updatedAt: new Date().toISOString() };
+      try {
+        await this._persistUpdate('corrective', 'mantenimientos', this._cache.corrective[idx], this._toCorrectiveRow.bind(this), { tipo: 'correctivo' });
+      } catch (err) {
+        const currentIdx = this._cache.corrective.findIndex(r => r.id === id);
+        if (currentIdx >= 0) {
+          this._cache.corrective[currentIdx] = previous;
+        }
+        throw err;
+      }
+    });
   },
   deleteCorrective(id) {
-    this._cache.corrective = this._cache.corrective.filter(x => x.id !== id);
-    this._syncDeleteRow('mantenimientos', id, 'corrective');
+    return this._enqueueRecord('corrective', id, async () => {
+      const idx = this._cache.corrective.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('deleteCorrective: correctivo no encontrado: ' + id);
+      const deleted = { ...this._cache.corrective[idx] };
+      const originalIndex = idx;
+      this._cache.corrective.splice(idx, 1);
+      try {
+        await this._persistDelete('corrective', 'mantenimientos', id);
+      } catch (err) {
+        if (!this._cache.corrective.some(r => r.id === id)) {
+          const safeIdx = Math.min(originalIndex, this._cache.corrective.length);
+          this._cache.corrective.splice(safeIdx, 0, deleted);
+        }
+        throw err;
+      }
+    });
   },
 
   /* ====================================================
@@ -508,17 +582,57 @@ newId() {
   addExpense(obj) {
     obj.id = obj.id || this.newId();
     obj.createdAt = obj.createdAt || new Date().toISOString();
-    this._cache.expenses.push(obj);
-    this._syncUpsertRow('gastos', this._toExpenseRow(obj), 'expenses');
-    return obj;
+    return this._enqueueRecord('expenses', obj.id, async () => {
+      if (this._cache.expenses.some(a => a.id === obj.id)) {
+        throw new Error('addExpense: id duplicado: ' + obj.id);
+      }
+      const record = { ...obj };
+      this._cache.expenses.push(record);
+      try {
+        await this._persistInsert('expenses', 'gastos', record, this._toExpenseRow.bind(this));
+        return record;
+      } catch (err) {
+        const idx = this._cache.expenses.findIndex(r => r.id === obj.id);
+        if (idx >= 0) this._cache.expenses.splice(idx, 1);
+        throw err;
+      }
+    });
   },
   updateExpense(id, d) {
-    const i = this._cache.expenses.findIndex(x => x.id === id);
-    if (i < 0) return;
-    this._cache.expenses[i] = { ...this._cache.expenses[i], ...d };
-    this._syncUpsertRow('gastos', this._toExpenseRow(this._cache.expenses[i]), 'expenses');
+    return this._enqueueRecord('expenses', id, async () => {
+      const idx = this._cache.expenses.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('updateExpense: gasto no encontrado: ' + id);
+      const previous = { ...this._cache.expenses[idx] };
+      this._cache.expenses[idx] = { ...previous, ...d };
+      try {
+        await this._persistUpdate('expenses', 'gastos', this._cache.expenses[idx], this._toExpenseRow.bind(this));
+      } catch (err) {
+        const currentIdx = this._cache.expenses.findIndex(r => r.id === id);
+        if (currentIdx >= 0) {
+          this._cache.expenses[currentIdx] = previous;
+        }
+        throw err;
+      }
+    });
   },
-  deleteExpense(id)   { this._cache.expenses = this._cache.expenses.filter(x => x.id !== id); this._syncDeleteRow('gastos', id, 'expenses'); },
+  deleteExpense(id) {
+    return this._enqueueRecord('expenses', id, async () => {
+      const idx = this._cache.expenses.findIndex(x => x.id === id);
+      if (idx < 0) throw new Error('deleteExpense: gasto no encontrado: ' + id);
+      const deleted = { ...this._cache.expenses[idx] };
+      const originalIndex = idx;
+      this._cache.expenses.splice(idx, 1);
+      try {
+        await this._persistDelete('expenses', 'gastos', id);
+      } catch (err) {
+        if (!this._cache.expenses.some(r => r.id === id)) {
+          const safeIdx = Math.min(originalIndex, this._cache.expenses.length);
+          this._cache.expenses.splice(safeIdx, 0, deleted);
+        }
+        throw err;
+      }
+    });
+  },
 
   /* ====================================================
      Vehículos CRUD
@@ -770,7 +884,7 @@ newId() {
     return this._syncUpsertRow('activos', this._toAssetRow(record), 'assets');
   },
 
-  _persistDeleteAsset(id) {
+_persistDeleteAsset(id) {
     if (this.mode !== 'supabase' || !this.supabase) {
       this._writeLSStrict('assets');
       return Promise.resolve({ success: true, local: true });
@@ -778,8 +892,37 @@ newId() {
     return this._syncDeleteRow('activos', id, 'assets');
   },
 
+  /* â”€â”€ Helpers genéricos de persistencia (reutilizan _enqueueRecord) â”€â”€ */
+  _persistInsert(collection, table, record, toRowFn, extraFields = {}) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      this._writeLSStrict(collection);
+      return Promise.resolve({ success: true, local: true });
+    }
+    const row = toRowFn(record);
+    Object.assign(row, extraFields);
+    return this._syncUpsertRow(table, row, collection);
+  },
+
+  _persistUpdate(collection, table, record, toRowFn, extraFields = {}) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      this._writeLSStrict(collection);
+      return Promise.resolve({ success: true, local: true });
+    }
+    const row = toRowFn(record);
+    Object.assign(row, extraFields);
+    return this._syncUpsertRow(table, row, collection);
+  },
+
+  _persistDelete(collection, table, id) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      this._writeLSStrict(collection);
+      return Promise.resolve({ success: true, local: true });
+    }
+    return this._syncDeleteRow(table, id, collection);
+  },
+
   /* ====================================================
-     Mapeo de filas (snake_case en Supabase â†” camelCase en la app)
+     Mapeo de filas (snake_case en Supabase ↔ camelCase en la app)
      ==================================================== */
   _toRow(ck, obj) {
     switch (ck) {
