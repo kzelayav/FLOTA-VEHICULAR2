@@ -198,20 +198,30 @@ const ReportsModule = {
     </div>`;
   },
 
-  deletePreventive(id) {
+      async deletePreventive(id) {
     if (!confirm('¿Eliminar este registro de mantenimiento preventivo? Esta acción no se puede deshacer.')) return;
-    DB.deletePreventive(id);
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Mantenimiento preventivo eliminado desde reportes` });
-    showToast('Registro eliminado exitosamente', 'success');
-    this.renderPreview();
+    try {
+      await DB.deletePreventive(id);
+      DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:'Mantenimiento preventivo eliminado desde reportes' });
+      showToast('Registro eliminado exitosamente', 'success');
+      this.renderPreview();
+    } catch (e) {
+      showToast(e.message || 'Error eliminando mantenimiento', 'error');
+      return;
+    }
   },
 
-  deleteCorrective(id) {
+      async deleteCorrective(id) {
     if (!confirm('¿Eliminar este registro de falla correctiva? Esta acción no se puede deshacer.')) return;
-    DB.deleteCorrective(id);
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Correctivo eliminado desde reportes` });
-    showToast('Registro eliminado exitosamente', 'success');
-    this.renderPreview();
+    try {
+      await DB.deleteCorrective(id);
+      DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:'Correctivo eliminado desde reportes' });
+      showToast('Registro eliminado exitosamente', 'success');
+      this.renderPreview();
+    } catch (e) {
+      showToast(e.message || 'Error eliminando correctivo', 'error');
+      return;
+    }
   },
 
   exportExcel() {

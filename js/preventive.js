@@ -246,7 +246,7 @@ const PreventiveModule = {
     document.getElementById('pm-total').value = l + p;
   },
 
-  save() {
+  async save() {
     const aid = document.getElementById('pm-asset').value;
     const type = document.getElementById('pm-type').value.trim();
     const date = document.getElementById('pm-date').value;
@@ -280,7 +280,6 @@ const PreventiveModule = {
     if (isKm) {
       data.lastDoneKm = meter;
       data.nextDueKm = meter + freqKm;
-      // Actualizar el activo si el kilometraje ingresado es mayor al actual
       if (meter > asset.currentKm) DB.updateAsset(aid, { currentKm: meter });
     } else {
       data.lastDoneHours = meter;
@@ -288,15 +287,18 @@ const PreventiveModule = {
       if (meter > asset.currentHours) DB.updateAsset(aid, { currentHours: meter });
     }
 
-    // Calcular una fecha estimada basándose en un uso promedio como respaldo (opcional)
     const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 180); // 6 meses por defecto si no llega al km
+    nextDate.setDate(nextDate.getDate() + 180);
     data.nextDueDate = nextDate.toISOString().split('T')[0];
 
-    DB.addPreventive(data);
-
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'CREATE', detail:`Mantenimiento registrado para ${asset.code}` });
-    showToast('Mantenimiento registrado y próximo servicio calculado', 'success');
+    try {
+      await DB.addPreventive(data);
+      DB.addAudit({ user:Auth.getSession()?.name||'', action:'CREATE', detail:'Mantenimiento registrado para ' + asset.code });
+      showToast('Mantenimiento registrado y próximo servicio calculado', 'success');
+    } catch (e) {
+      showToast(e.message || 'Error registrando mantenimiento', 'error');
+      return;
+    }
     closeModal('prev-modal-placeholder');
     App.navigate('preventive');
   },
@@ -329,11 +331,16 @@ const PreventiveModule = {
     `);
   },
 
-  delete(id, assetId) {
+async delete(id, assetId) {
     if (!confirm('¿Eliminar este registro de mantenimiento preventivo? Esta acción no se puede deshacer.')) return;
-    DB.deletePreventive(id);
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Mantenimiento preventivo eliminado para ${assetId}` });
-    showToast('Registro eliminado exitosamente', 'success');
-    App.navigate('preventive');
-  }
-};
+    try {
+      await DB.deletePreventive(id);
+      DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Mantenimiento preventivo eliminado para ${assetId}` });
+      showToast('Registro eliminado exitosamente', 'success');
+      App.navigate('preventive');
+    } catch (e) {
+      showToast(e.message || 'Error eliminando mantenimiento', 'error');
+      return;
+    }
+  },
+}

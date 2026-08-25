@@ -212,7 +212,7 @@ const CorrectiveModule = {
     if (meter && !meter.value) meter.value = isKm ? a.currentKm : a.currentHours;
   },
 
-  save(id) {
+  async save(id) {
     const get = sel => document.getElementById(sel)?.value?.trim();
     const assetId = get('cmf-asset');
     const failDate = get('cmf-faildate');
@@ -239,42 +239,62 @@ const CorrectiveModule = {
 
     const session = Auth.getSession();
     if (id) {
-      DB.updateCorrective(id, data);
-      DB.addAudit({ user:session.name, action:'UPDATE', detail:`Correctivo actualizado: ${data.assetCode}` });
-      showToast('Registro actualizado','success');
+      try {
+        await DB.updateCorrective(id, data);
+        DB.addAudit({ user:session.name, action:'UPDATE', detail:'Correctivo actualizado: ' + data.assetCode });
+        showToast('Registro actualizado','success');
+      } catch (e) {
+        showToast(e.message || 'Error actualizando correctivo', 'error');
+        return;
+      }
     } else {
-      DB.addCorrective(data);
-      // Update asset status
-      DB.updateAsset(assetId, { status: data.status==='repaired'?'operativo':'fuera' });
-      DB.addAudit({ user:session.name, action:'CREATE', detail:`Falla registrada: ${data.assetCode} — ${data.failureCategory}` });
-      showToast('Falla registrada','success');
+      try {
+        await DB.addCorrective(data);
+        // Update asset status
+        await DB.updateAsset(assetId, { status: data.status==='repaired'?'operativo':'fuera' });
+        DB.addAudit({ user:session.name, action:'CREATE', detail:'Falla registrada: ' + data.assetCode + ' — ' + data.failureCategory });
+        showToast('Falla registrada','success');
+      } catch (e) {
+        showToast(e.message || 'Error registrando falla', 'error');
+        return;
+      }
     }
     if (meter > 0 && asset) {
-      if (isKm && meter > asset.currentKm) DB.updateAsset(assetId, { currentKm: meter });
-      else if (!isKm && meter > asset.currentHours) DB.updateAsset(assetId, { currentHours: meter });
+      if (isKm && meter > asset.currentKm) await DB.updateAsset(assetId, { currentKm: meter });
+      else if (!isKm && meter > asset.currentHours) await DB.updateAsset(assetId, { currentHours: meter });
     }
     closeModal('cm-modal-placeholder');
     App.navigate('corrective');
   },
 
-  markRepaired(id) {
+  async markRepaired(id) {
     const cm = DB.getCorrective().find(c=>c.id===id);
     if (!cm) return;
     const today = new Date().toISOString().split('T')[0];
-    DB.updateCorrective(id, { status:'repaired', repairDate: today });
-    DB.updateAsset(cm.assetId, { status:'operativo' });
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'COMPLETE', detail:`Correctivo reparado: ${cm.assetCode}` });
-    showToast('Equipo marcado como reparado','success');
-    App.navigate('corrective');
+    try {
+      await DB.updateCorrective(id, { status:'repaired', repairDate: today });
+      await DB.updateAsset(cm.assetId, { status:'operativo' });
+      DB.addAudit({ user:Auth.getSession()?.name||'', action:'COMPLETE', detail:`Correctivo reparado: ${cm.assetCode}` });
+      showToast('Equipo marcado como reparado','success');
+      App.navigate('corrective');
+    } catch (e) {
+      showToast(e.message || 'Error marcando como reparado', 'error');
+      return;
+    }
   },
 
-  delete(id) {
+  async delete(id) {
     const cm = DB.getCorrective().find(c=>c.id===id);
     if (!confirm('¿Eliminar este registro de falla?')) return;
-    DB.deleteCorrective(id);
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Correctivo eliminado: ${cm?.assetCode}` });
-    showToast('Registro eliminado','success');
-    App.navigate('corrective');
+    try {
+      await DB.deleteCorrective(id);
+      DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Correctivo eliminado: ${cm?.assetCode}` });
+      showToast('Registro eliminado','success');
+      App.navigate('corrective');
+    } catch (e) {
+      showToast(e.message || 'Error eliminando correctivo', 'error');
+      return;
+    }
   },
 
   viewDetail(id) {

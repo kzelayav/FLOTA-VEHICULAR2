@@ -409,7 +409,7 @@ const AlertsModule = {
     return { intervaloKm, nextKm };
   },
 
-  save(id) {
+    async save(id) {
     const g = eid => document.getElementById(eid)?.value?.trim();
     const assetId = g('al-asset');
     if (!assetId || !DB.getAsset(assetId)) {
@@ -442,37 +442,57 @@ const AlertsModule = {
 
     const session = Auth.getSession();
     if (id) {
-      DB.updateAlerta(id, data);
-      DB.addAudit({ user: session?.name || '', action: 'UPDATE', detail: `Alerta actualizada: ${tipoMantenimiento} — ${vehiculo}` });
-      showToast('Alerta actualizada', 'success');
+      try {
+        await DB.updateAlerta(id, data);
+        DB.addAudit({ user: session?.name || '', action: 'UPDATE', detail: 'Alerta actualizada: ' + tipoMantenimiento + ' — ' + vehiculo });
+        showToast('Alerta actualizada', 'success');
+      } catch (e) {
+        showToast(e.message || 'Error actualizando alerta', 'error');
+        return;
+      }
     } else {
-      DB.addAlerta(data);
-      DB.addAudit({ user: session?.name || '', action: 'CREATE', detail: `Alerta creada: ${tipoMantenimiento} — ${vehiculo}` });
-      showToast('Alerta creada', 'success');
+      try {
+        await DB.addAlerta(data);
+        DB.addAudit({ user: session?.name || '', action: 'CREATE', detail: 'Alerta creada: ' + tipoMantenimiento + ' — ' + vehiculo });
+        showToast('Alerta creada', 'success');
+      } catch (e) {
+        showToast(e.message || 'Error creando alerta', 'error');
+        return;
+      }
     }
     closeModal('alert-modal-placeholder');
     App.navigate('alerts');
   },
 
-  toggleEstado(id) {
+    async toggleEstado(id) {
     const a = DB.getAlertas().find(x => x.id === id);
     if (!a) return;
-    DB.updateAlerta(id, { estado: 'Completada' });
-    DB.addAudit({ user: Auth.getSession()?.name || '', action: 'UPDATE', detail: `Alerta completada: ${a.tipoMantenimiento} — ${a.vehiculo}` });
-    showToast('Alerta marcada como completada', 'success');
-    App.navigate('alerts');
+    try {
+      await DB.updateAlerta(id, { estado: 'Completada' });
+      DB.addAudit({ user: Auth.getSession()?.name || '', action: 'UPDATE', detail: 'Alerta completada: ' + a.tipoMantenimiento + ' — ' + a.vehiculo });
+      showToast('Alerta marcada como completada', 'success');
+      App.navigate('alerts');
+    } catch (e) {
+      showToast(e.message || 'Error actualizando alerta', 'error');
+      return;
+    }
   },
 
-  remove(id) {
+    async remove(id) {
     const a = DB.getAlertas().find(x => x.id === id);
     if (!a) return;
     if (!confirm('¿Eliminar esta alerta?')) return;
-    DB.deleteAlerta(id);
-    try { localStorage.setItem('fleet_alerts_auto', '1'); } catch {}
-    DB.addAudit({ user: Auth.getSession()?.name || '', action: 'DELETE', detail: `Alerta eliminada: ${a.tipoMantenimiento} — ${a.vehiculo}` });
-    showToast('Alerta eliminada', 'success');
-    App.navigate('alerts');
-  },
+    try {
+      await DB.deleteAlerta(id);
+      try { localStorage.setItem('fleet_alerts_auto', '1'); } catch {}
+      DB.addAudit({ user: Auth.getSession()?.name || '', action: 'DELETE', detail: 'Alerta eliminada: ' + a.tipoMantenimiento + ' — ' + a.vehiculo });
+      showToast('Alerta eliminada', 'success');
+      App.navigate('alerts');
+    } catch (e) {
+      showToast(e.message || 'Error eliminando alerta', 'error');
+      return;
+    }
+  }
 };
 
 /* ====================================================

@@ -296,7 +296,7 @@ const AssetsModule = {
     );
   },
 
-  save(id) {
+          async save(id) {
     const get = sel => document.getElementById(sel)?.value?.trim();
     const code = get('af-code');
     if (!code) { showToast('El código es obligatorio','error'); return; }
@@ -314,20 +314,37 @@ const AssetsModule = {
     };
 
     const session = Auth.getSession();
-    if (id) {
-      DB.updateAsset(id, data);
-      DB.addAudit({ user: session.name, action:'UPDATE', detail:`Activo actualizado: ${data.code}` });
-      showToast(`Activo ${data.code} actualizado`,'success');
-    } else {
-      DB.addAsset(data);
-      DB.addAudit({ user: session.name, action:'CREATE', detail:`Nuevo activo: ${data.code}` });
-      showToast(`Activo ${data.code} creado`,'success');
+    const btn = document.getElementById('af-submit') || document.querySelector(`[onclick="AssetsModule.save('${id||''}')"]`);
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-loader"></span> Guardando...';
     }
-    closeModal('asset-modal-placeholder');
-    App.navigate('assets');
+
+    try {
+      if (id) {
+        await DB.updateAsset(id, data);
+        DB.addAudit({ user: session.name, action:'UPDATE', detail:`Activo actualizado: ${data.code}` });
+        showToast(`Activo ${data.code} actualizado`,'success');
+      } else {
+        await DB.addAsset(data);
+        DB.addAudit({ user: session.name, action:'CREATE', detail:`Nuevo activo: ${data.code}` });
+        showToast(`Activo ${data.code} creado`,'success');
+      }
+      closeModal('asset-modal-placeholder');
+      App.navigate('assets');
+    } catch (e) {
+      showToast(e.message || 'Error guardando activo', 'error');
+      return;
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
   },
 
-  deleteAsset(id) {
+    async deleteAsset(id) {
     const a = DB.getAsset(id);
     if (!confirm(`¿Eliminar activo ${a?.code}? Esta acción no se puede deshacer.`)) return;
     
@@ -337,9 +354,14 @@ const AssetsModule = {
     DB.savePreventive(prev);
     DB.saveCorrective(corr);
     
-    DB.deleteAsset(id);
-    DB.addAudit({ user: Auth.getSession()?.name||'', action:'DELETE', detail:`Activo eliminado: ${a?.code} y sus mantenimientos` });
-    showToast('Activo y sus mantenimientos eliminados','success');
+    try {
+      await DB.deleteAsset(id);
+      DB.addAudit({ user: Auth.getSession()?.name||'', action:'DELETE', detail:`Activo eliminado: ${a?.code} y sus mantenimientos` });
+      showToast('Activo y sus mantenimientos eliminados','success');
+    } catch (e) {
+      showToast(e.message || 'Error eliminando activo', 'error');
+      return;
+    }
     App.navigate('assets');
   },
 
