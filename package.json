@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {
+    "validate": "node scripts/validate-js.cjs",
+    "build": "npm run validate"
+  }
+}

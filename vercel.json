@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run validate && echo 'Validation passed, skipping build for static site'",
+  "devCommand": "echo 'Static site - no dev server needed'",
+  "installCommand": "echo 'No dependencies to install'",
+  "framework": null,
+  "outputDirectory": ".",
+  "github": {
+    "enabled": true,
+    "autoAlias": true,
+    "silent": false
+  }
+}
