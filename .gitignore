@@ -10,6 +10,8 @@ build/
 backup_*/
 backup_pre_*/
 temp_*/
+temp_*
+new_save_*
 *.bak
 
 # Environment files
