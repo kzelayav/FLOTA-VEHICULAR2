@@ -396,20 +396,59 @@ newId() {
     });
   },
   getAsset(id)       { return this._cache.assets.find(x => x.id === id); },
-  async bulkAddAssets(arr) {
-    const ready = [];
-    for (const obj of arr) {
-      obj.id = obj.id || this.newId();
-      obj.createdAt = obj.createdAt || new Date().toISOString();
-      ready.push(obj);
+  async bulkAddAssets(records) {
+    if (!Array.isArray(records) || records.length === 0) {
+      throw new Error('bulkAddAssets: array vacío o inválido');
     }
-    this._cache.assets = this._cache.assets.concat(ready);
+    if (records.length > 20) {
+      throw new Error('bulkAddAssets: máximo 20 registros por importación');
+    }
+    for (const r of records) {
+      if (!r || !r.code || !r.type || !r.brand || !r.model) {
+        throw new Error('bulkAddAssets: faltan campos obligatorios (code, type, brand, model)');
+      }
+      if (this._cache.assets.some(a => this._normalizeAssetCode(a.code) === this._normalizeAssetCode(r.code) && a.id !== r.id)) {
+        throw new Error('bulkAddAssets: código duplicado en caché: ' + r.code);
+      }
+    }
+    const recordsToInsert = records.map(r => ({
+      ...r,
+      id: r.id || this.newId(),
+      createdAt: r.createdAt || new Date().toISOString()
+    });
     if (this.mode === 'supabase' && this.supabase) {
-      await this._async('bulk insert activos', () => this._upsertRows('activos', ready.map(a => this._toAssetRow(a))));
+      await this._enqueueRecord('assets', '__bulk_import__', async () => {
+        const rows = recordsToInsert.map(r => this._toAssetRow(r));
+        const { error } = await this.supabase.from('activos').upsert(rows, { onConflict: 'id' });
+        if (error) throw error;
+      });
     } else {
-      this._writeLS('assets');
+      this._persistAssetBatchLocal(recordsToInsert);
     }
-    return arr;
+    this._cache.assets.push(...recordsToInsert);
+    return {
+      totalSubmitted: records.length,
+      totalConfirmed: records.length,
+      totalPersistenceRejected: 0,
+      totalPending: 0,
+      confirmedRecords: recordsToInsert,
+      persistenceRejectedRecords: [],
+      pendingRecords: [],
+      errors: [],
+      mode: this.mode,
+      completedAt: new Date().toISOString()
+    };
+  },
+
+  _persistAssetRows(batch) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      return this._persistAssetBatchLocal(batch);
+    }
+    const rows = batch.map(r => this._toAssetRow(r));
+    return this._enqueue('activos', async () => {
+      const { error } = await this.supabase.from('activos').upsert(rows, { onConflict: 'id' });
+      if (error) throw error;
+    });
   },
 
   /* ====================================================
@@ -927,6 +966,21 @@ _persistDeleteAsset(id) {
       return Promise.resolve({ success: true, local: true });
     }
     return this._syncDeleteRow('activos', id, 'assets');
+  },
+
+  _persistAssetBatchLocal(records) {
+    const previous = this._cache.assets.slice();
+    const updated = previous.concat(records);
+    try {
+      const key = this._cacheKeyToLS('assets');
+      if (!key) throw new Error('Clave LocalStorage no configurada');
+      localStorage.setItem(key, JSON.stringify(updated));
+      this._cache.assets = updated;
+      return { success: true, local: true, count: records.length };
+    } catch (err) {
+      this._cache.assets = previous;
+      throw err;
+    }
   },
 
   /* â”€â”€ Helpers genéricos de persistencia (reutilizan _enqueueRecord) â”€â”€ */
