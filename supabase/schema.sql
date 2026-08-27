@@ -533,3 +533,76 @@ WITH CHECK (
 );
 
 COMMIT;
+
+-- ============================ GASTOS RLS (F2F.6) ================================
+-- Policies restrictivas por rol, datos compartidos.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS gastos_select ON public.gastos;
+DROP POLICY IF EXISTS gastos_insert ON public.gastos;
+DROP POLICY IF EXISTS gastos_update ON public.gastos;
+DROP POLICY IF EXISTS gastos_delete ON public.gastos;
+DROP POLICY IF EXISTS allow_all_gastos ON public.gastos;
+
+REVOKE ALL ON public.gastos FROM anon;
+REVOKE ALL ON public.gastos FROM authenticated;
+REVOKE ALL ON public.gastos FROM PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.gastos TO authenticated;
+
+CREATE POLICY gastos_select ON public.gastos
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+CREATE POLICY gastos_insert ON public.gastos
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY gastos_update ON public.gastos
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY gastos_delete ON public.gastos
+FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor')
+  )
+);
+
+COMMIT;
