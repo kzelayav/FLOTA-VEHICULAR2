@@ -622,7 +622,8 @@ newId() {
     const a = this._cache.audit;
     a.unshift(entry);
     if (a.length > 500) a.length = 500;
-    this._syncUpsertRow('auditoria', { id: entry.id, user_name: entry.user || '', action: entry.action || '', detail: entry.detail || '', ts: entry.ts }, 'audit');
+    const row = { id: entry.id, user_name: entry.user || '', action: entry.action || '', detail: entry.detail || '', ts: entry.ts };
+    this._persistAuditRow(row).catch(err => console.warn('[DB] Auditoría no disponible:', err.message));
   },
 
   /* ====================================================
@@ -847,6 +848,15 @@ newId() {
     this._async(`upsert ${table}`, () =>
       this.supabase.from(table).upsert([row], { onConflict: 'id' }).then(({ error }) => { if (error) throw error; })
     );
+  },
+
+  _persistAuditRow(row) {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      return Promise.resolve();
+    }
+    return this.supabase.from('auditoria').insert([row]).then(({ error }) => {
+      if (error) throw error;
+    });
   },
 
   _syncDeleteRow(table, id, coll) {

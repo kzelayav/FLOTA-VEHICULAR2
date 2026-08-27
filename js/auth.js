@@ -150,6 +150,23 @@ const Auth = {
     const previousSession = this.getSession();
     const mode = this.getMode();
 
+    // 1. Persistir LOGOUT antes de cerrar sesión (mientras el JWT es válido)
+    if (previousSession?.name) {
+      try {
+        const logoutEntry = {
+          id: DB.newId(),
+          user_name: previousSession.name,
+          action: 'LOGOUT',
+          detail: `Cierre de sesión ${mode}`,
+          ts: new Date().toISOString(),
+        };
+        await DB._persistAuditRow({ id: logoutEntry.id, user_name: logoutEntry.user_name, action: logoutEntry.action, detail: logoutEntry.detail, ts: logoutEntry.ts });
+      } catch {
+        console.warn('[Auth] Auditoría LOGOUT no disponible');
+      }
+    }
+
+    // 2. Cerrar sesión en Supabase
     if (mode === 'supabase') {
       const client = DB.supabase;
       if (client) {
@@ -161,14 +178,7 @@ const Auth = {
     sessionStorage.removeItem(this.SESSION_KEY);
     this._session = null;
 
-    // Auditoría no bloqueante
-    if (previousSession?.name) {
-      try {
-        DB.addAudit({ user: previousSession.name, action: 'LOGOUT', detail: `Cierre de sesión ${mode}` });
-      } catch {
-        console.warn('[Auth] Auditoría no disponible');
-      }
-    }
+    // No registrar auditoría aquí (ya se hizo arriba)
   },
 
   /* ── Inicializar listener de auth (solo modo supabase) ── */
