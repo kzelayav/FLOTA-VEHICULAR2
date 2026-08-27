@@ -469,3 +469,67 @@ USING (
 );
 
 COMMIT;
+
+-- ============================ CONFIGURACION RLS (F2F.5) ================================
+-- Policies restrictivas por rol, single-row shared config.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS configuracion_select ON public.configuracion;
+DROP POLICY IF EXISTS configuracion_insert ON public.configuracion;
+DROP POLICY IF EXISTS configuracion_update ON public.configuracion;
+DROP POLICY IF EXISTS allow_all_configuracion ON public.configuracion;
+
+REVOKE ALL ON public.configuracion FROM anon;
+REVOKE ALL ON public.configuracion FROM authenticated;
+REVOKE ALL ON public.configuracion FROM PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE ON public.configuracion TO authenticated;
+
+CREATE POLICY configuracion_select ON public.configuracion
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+CREATE POLICY configuracion_insert ON public.configuracion
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+  AND id = 'default'
+);
+
+CREATE POLICY configuracion_update ON public.configuracion
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+  AND id = 'default'
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+  AND id = 'default'
+);
+
+COMMIT;
