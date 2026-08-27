@@ -259,3 +259,76 @@ revoke all on public.profiles from anon;
 revoke all on public.profiles from authenticated;
 revoke all on public.profiles from public;
 grant select on public.profiles to authenticated;
+
+-- ============================ ALERTAS RLS (F2F.1) ================================
+-- Policies restrictivas por rol, datos compartidos.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS alertas_select ON public.alertas;
+DROP POLICY IF EXISTS alertas_insert ON public.alertas;
+DROP POLICY IF EXISTS alertas_update ON public.alertas;
+DROP POLICY IF EXISTS alertas_delete ON public.alertas;
+DROP POLICY IF EXISTS allow_all_alertas ON public.alertas;
+
+REVOKE ALL ON public.alertas FROM anon;
+REVOKE ALL ON public.alertas FROM authenticated;
+REVOKE ALL ON public.alertas FROM PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.alertas TO authenticated;
+
+CREATE POLICY alertas_select ON public.alertas
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+CREATE POLICY alertas_insert ON public.alertas
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY alertas_update ON public.alertas
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY alertas_delete ON public.alertas
+FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+COMMIT;
