@@ -18,5 +18,5 @@
 window.SUPABASE_CONFIG = {
   url: 'https://jeezwjnnsixlkehcumtp.supabase.co',
   anonKey: 'sb_publishable_cX2xcamNGBqXRUYds0uZnw_5BV0st2c',
-  authMode: 'legacy',
+  authMode: 'supabase',
 };
