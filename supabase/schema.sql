@@ -332,3 +332,76 @@ USING (
 );
 
 COMMIT;
+
+-- ============================ CONDUCTORES RLS (F2F.2) ================================
+-- Policies restrictivas por rol, datos compartidos.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS conductores_select ON public.conductores;
+DROP POLICY IF EXISTS conductores_insert ON public.conductores;
+DROP POLICY IF EXISTS conductores_update ON public.conductores;
+DROP POLICY IF EXISTS conductores_delete ON public.conductores;
+DROP POLICY IF EXISTS allow_all_conductores ON public.conductores;
+
+REVOKE ALL ON public.conductores FROM anon;
+REVOKE ALL ON public.conductores FROM authenticated;
+REVOKE ALL ON public.conductores FROM PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.conductores TO authenticated;
+
+CREATE POLICY conductores_select ON public.conductores
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+CREATE POLICY conductores_insert ON public.conductores
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor')
+  )
+);
+
+CREATE POLICY conductores_update ON public.conductores
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor')
+  )
+);
+
+CREATE POLICY conductores_delete ON public.conductores
+FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor')
+  )
+);
+
+COMMIT;
