@@ -10,9 +10,13 @@
 
    Si no se configura, la app funciona en modo de
    respaldo con LocalStorage (sin romper nada).
+
+   AUTH_MODE: modo de autenticación del deployment.
+   Valores: 'legacy' | 'supabase'
    ==================================================== */
 
 window.SUPABASE_CONFIG = {
   url: 'https://jeezwjnnsixlkehcumtp.supabase.co',
   anonKey: 'sb_publishable_cX2xcamNGBqXRUYds0uZnw_5BV0st2c',
+  authMode: 'legacy',
 };
