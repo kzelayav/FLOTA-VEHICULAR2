@@ -220,3 +220,42 @@ end $$;
 grant usage on schema public to anon, authenticated;
 grant all on all tables in schema public to anon, authenticated;
 grant all on all sequences in schema public to anon, authenticated;
+
+-- ============================ PROFILES (F2B) =================================
+-- Perfiles mínimos vinculados a Supabase Auth. RLS self-read únicamente.
+-- Sin policies admin, sin escritura desde frontend.
+create table if not exists public.profiles (
+  id             uuid primary key references auth.users(id) on delete cascade,
+  name           text not null,
+  role           text not null check (role in ('admin','supervisor','tecnico','consulta')),
+  active         boolean not null default true,
+  created_at     timestamptz default now(),
+  updated_at     timestamptz default now()
+);
+
+create or replace function public.set_profiles_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_profiles_updated_at on public.profiles;
+create trigger trg_profiles_updated_at
+before update on public.profiles
+for each row execute function public.set_profiles_updated_at();
+
+alter table public.profiles enable row level security;
+
+drop policy if exists profiles_self_read on public.profiles;
+create policy profiles_self_read
+on public.profiles
+for select
+to authenticated
+using (auth.uid() = id);
+
+revoke all on public.profiles from anon;
+revoke all on public.profiles from authenticated;
+revoke all on public.profiles from public;
+grant select on public.profiles to authenticated;

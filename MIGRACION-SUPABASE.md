@@ -67,6 +67,7 @@ la migración de los datos existentes.
 | `auditoria` | Bitácora de auditoría (módulo Auditoría). |
 | `gastos` | Gastos operativos (referenciados por `expenses.js` y reportes). |
 | `configuracion` | Configuración del sistema (moneda, días de anticipación). Una sola fila `id='default'`. |
+| `profiles` | Perfiles vinculados a Supabase Auth (F2B). Solo lectura propia vía RLS (`auth.uid() = id`). Administración manual. |
 
 ### Convención de columnas
 
@@ -168,6 +169,7 @@ Usuarios existentes en Supabase (login rápido en la pantalla de inicio): `admin
 
 - El script `schema.sql` activa **Row Level Security** con políticas **permisivas**
   (`using(true) with check(true)`) para que la app funcione con la anon key.
+- **Tabla `profiles` (F2B)**: RLS habilitada con policy `profiles_self_read` que permite `SELECT` únicamente a `authenticated` cuando `auth.uid() = id`. Sin policies de escritura. Administración manual vía Dashboard/SQL Editor.
 - ⚠️ **Para producción** se recomienda:
   - Adoptar **Supabase Auth** para el login (en lugar del login propio con la tabla `usuarios`).
   - Reemplazar las políticas permisivas por políticas basadas en `auth.uid()` y roles.
