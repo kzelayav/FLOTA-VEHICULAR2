@@ -405,3 +405,35 @@ USING (
 );
 
 COMMIT;
+
+-- ============================ VEHICULOS RLS (F2F.3) ================================
+-- Policies restrictivas de solo lectura, datos compartidos.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS vehiculos_select ON public.vehiculos;
+DROP POLICY IF EXISTS vehiculos_insert ON public.vehiculos;
+DROP POLICY IF EXISTS vehiculos_update ON public.vehiculos;
+DROP POLICY IF EXISTS vehiculos_delete ON public.vehiculos;
+DROP POLICY IF EXISTS allow_all_vehiculos ON public.vehiculos;
+
+REVOKE ALL ON public.vehiculos FROM anon;
+REVOKE ALL ON public.vehiculos FROM authenticated;
+REVOKE ALL ON public.vehiculos FROM PUBLIC;
+
+GRANT SELECT ON public.vehiculos TO authenticated;
+
+CREATE POLICY vehiculos_select ON public.vehiculos
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+COMMIT;
