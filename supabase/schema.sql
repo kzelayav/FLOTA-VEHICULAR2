@@ -437,3 +437,35 @@ USING (
 );
 
 COMMIT;
+
+-- ============================ DOCUMENTOS RLS (F2F.4) ================================
+-- Policies restrictivas de solo lectura, datos compartidos.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS documentos_select ON public.documentos;
+DROP POLICY IF EXISTS documentos_insert ON public.documentos;
+DROP POLICY IF EXISTS documentos_update ON public.documentos;
+DROP POLICY IF EXISTS documentos_delete ON public.documentos;
+DROP POLICY IF EXISTS allow_all_documentos ON public.documentos;
+
+REVOKE ALL ON public.documentos FROM anon;
+REVOKE ALL ON public.documentos FROM authenticated;
+REVOKE ALL ON public.documentos FROM PUBLIC;
+
+GRANT SELECT ON public.documentos TO authenticated;
+
+CREATE POLICY documentos_select ON public.documentos
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+COMMIT;
