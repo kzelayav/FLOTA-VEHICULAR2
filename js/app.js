@@ -154,31 +154,6 @@ const App = {
     }
     if (boot) boot.style.display = 'none';
 
-    // Resolver modo de autenticación
-    const mode = Auth.getMode();
-
-    if (mode === 'supabase') {
-      // Modo Supabase: limpiar sesión legacy, registrar listener, restaurar sesión
-      Auth.clearRuntimeSession();
-      Auth.initAuthListener();
-      const restored = await Auth.restoreSupabaseSession();
-      if (restored && Auth.getSession()) {
-        this.showApp();
-      } else {
-        this.renderLogin();
-        this.initLoginForm();
-      }
-    } else {
-      // Modo Legacy: comportamiento actual
-      Auth._session = null; // limpiar adapter en memoria
-      if (Auth.getSession()) {
-        this.showApp();
-      } else {
-        this.renderLogin();
-        this.initLoginForm();
-      }
-    }
-
     // Toggle sidebar (desktop)
     document.getElementById('btn-collapse-sidebar')?.addEventListener('click', () => {
       const sb = document.getElementById('sidebar');
@@ -226,6 +201,13 @@ const App = {
         }
       }
     });
+
+    if (Auth.getSession()) {
+      this.showApp();
+    } else {
+      this.renderLogin();
+      this.initLoginForm();
+    }
   },
 
   initLoginForm() {
@@ -388,24 +370,14 @@ function downloadFile(content, filename, mimeType = 'text/plain') {
    LOGIN HANDLERS
    ==================================================== */
 
-async function handleLogin() {
+function handleLogin() {
   const email = document.getElementById('login-email')?.value?.trim();
   const pwd   = document.getElementById('login-pwd')?.value?.trim();
   if (!email || !pwd) { showToast('Ingresa tu email y contraseña','error'); return; }
-
-  const submitBtn = document.getElementById('login-submit');
-  if (submitBtn) submitBtn.disabled = true;
-
-  try {
-    const session = await Auth.login(email, pwd);
-    if (!session) { showToast('Credenciales incorrectas','error'); return; }
-    showToast(`Bienvenido, ${session.name}!`, 'success');
-    setTimeout(() => App.showApp(), 400);
-  } catch (err) {
-    showToast(err.message || 'Credenciales incorrectas', 'error');
-  } finally {
-    if (submitBtn) submitBtn.disabled = false;
-  }
+  const session = Auth.login(email, pwd);
+  if (!session) { showToast('Credenciales incorrectas','error'); return; }
+  showToast(`Bienvenido, ${session.name}!`, 'success');
+  setTimeout(() => App.showApp(), 400);
 }
 
 function handleDemoLogin(email, password) {
@@ -414,8 +386,8 @@ function handleDemoLogin(email, password) {
   handleLogin();
 }
 
-async function handleLogout() {
-  await Auth.logout();
+function handleLogout() {
+  Auth.logout();
   location.reload();
 }
 

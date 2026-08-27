@@ -1,5 +1,5 @@
 /* ====================================================
-   AUTH — Role-based Access Control + Dual Auth Infrastructure
+   AUTH — Role-based Access Control
    ==================================================== */
 
 const Auth = {
@@ -12,184 +12,29 @@ const Auth = {
     consulta:   { label:'Consulta',      color:'muted',   icon:'👁️', perms: ['dashboard','reports'] },
   },
 
-  _session: null,
-  _authSub: null,
-
-  /* ── Configuración de modo ── */
-  getMode() {
-    try {
-      const cfg = window.SUPABASE_CONFIG || {};
-      const mode = cfg.authMode;
-      if (mode === 'legacy' || mode === 'supabase') return mode;
-      console.warn('[Auth] authMode inválido, usando legacy');
-      return 'legacy';
-    } catch {
-      return 'legacy';
-    }
-  },
-
-  /* ── Login unificado (async) ── */
-  async login(email, password) {
-    const mode = this.getMode();
-    if (mode === 'supabase') {
-      return await this.loginSupabase(email, password);
-    }
-    return this.loginLegacy(email, password);
-  },
-
-  /* ── Login legacy (sync) ── */
-  loginLegacy(email, password) {
+  /* ── Login ── */
+  login(email, password) {
     const users = DB.getUsers();
     const user  = users.find(u => u.email === email && u.password === password && u.active);
     if (!user) return null;
     const session = { ...user };
     delete session.password;
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
-    this._session = session;
-    void DB.addAudit({ user: user.name, action: 'LOGIN', detail: `Inicio de sesión legacy` }).catch(()=>{});
+    DB.addAudit({ user: user.name, action: 'LOGIN', detail: `Inicio de sesión desde ${navigator.userAgent.slice(0,30)}` });
     return session;
   },
 
-  /* ── Login Supabase (async) ── */
-  async loginSupabase(email, password) {
-    const client = DB.supabase;
-    if (!client) throw new Error('Cliente Supabase no disponible');
-
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error) throw new Error('Credenciales inválidas');
-
-    const profile = await this.loadOwnProfile(data.user.id);
-    if (!profile) throw new Error('Perfil no configurado');
-    if (!profile.active) throw new Error('Cuenta desactivada');
-
-    const session = this.adaptSupabaseSession(data.user, profile);
-    this._session = session;
-    return session;
+  /* ── Logout ── */
+  logout() {
+    const s = this.getSession();
+    if (s) DB.addAudit({ user: s.name, action: 'LOGOUT', detail: 'Cierre de sesión' });
+    sessionStorage.removeItem(this.SESSION_KEY);
   },
 
-  /* ── Restaurar sesión Supabase (async) ── */
-  async restoreSupabaseSession() {
-    const client = DB.supabase;
-    if (!client) return false;
-
-    const { data: { session } } = await client.auth.getSession();
-    if (!session?.user) {
-      this._session = null;
-      return false;
-    }
-
-    const profile = await this.loadOwnProfile(session.user.id);
-    if (!profile || !profile.active) {
-      await client.auth.signOut();
-      this._session = null;
-      return false;
-    }
-
-    this._session = this.adaptSupabaseSession(session.user, profile);
-    return true;
-  },
-
-  /* ── Cargar propio profile (async) ── */
-  async loadOwnProfile(userId) {
-    const client = DB.supabase;
-    if (!client) return null;
-
-    const { data, error } = await client
-      .from('profiles')
-      .select('id,name,role,active')
-      .eq('id', userId)
-      .single();
-    if (error || !data) return null;
-    return data;
-  },
-
-  /* ── Adapter de sesión Supabase → contrato app ── */
-  adaptSupabaseSession(user, profile) {
-    return {
-      id: user.id,
-      name: profile.name,
-      email: user.email,
-      role: profile.role,
-      avatar: '',
-      active: profile.active,
-    };
-  },
-
-  /* ── Get current session (SYNC) ── */
+  /* ── Get current session ── */
   getSession() {
-    // Si ya tenemos adapter en memoria, devolverlo
-    if (this._session) return this._session;
-
-    const mode = this.getMode();
-    if (mode === 'supabase') {
-      // En modo supabase NO leer fleet_session
-      return this._session;
-    }
-
-    // Modo legacy: leer fleet_session
-    try {
-      const raw = sessionStorage.getItem(this.SESSION_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || !parsed.id) return null;
-      this._session = parsed;
-      return this._session;
-    } catch {
-      sessionStorage.removeItem(this.SESSION_KEY);
-      this._session = null;
-      return null;
-    }
-  },
-
-  /* ── Logout (async) ── */
-  async logout() {
-    const previousSession = this.getSession();
-    const mode = this.getMode();
-
-    if (mode === 'supabase') {
-      const client = DB.supabase;
-      if (client) {
-        await client.auth.signOut().catch(()=>{});
-      }
-    }
-
-    // Limpiar siempre fleet_session por seguridad
-    sessionStorage.removeItem(this.SESSION_KEY);
-    this._session = null;
-
-    // Auditoría no bloqueante
-    if (previousSession?.name) {
-      void DB.addAudit({ user: previousSession.name, action: 'LOGOUT', detail: `Cierre de sesión ${mode}` }).catch(()=>{});
-    }
-  },
-
-  /* ── Inicializar listener de auth (solo modo supabase) ── */
-  initAuthListener() {
-    const client = DB.supabase;
-    if (!client || this._authSub) return;
-
-    this._authSub = client.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        this._session = null;
-        sessionStorage.removeItem(this.SESSION_KEY);
-        // La recarga oficial la hace handleLogout(); aquí solo limpiamos estado
-      }
-      // SIGNED_IN: no hacer nada (login explícito ya cargó profile)
-    });
-  },
-
-  /* ── Limpiar suscripción (si se reinicializa) ── */
-  clearAuthListener() {
-    if (this._authSub) {
-      this._authSub.unsubscribe();
-      this._authSub = null;
-    }
-  },
-
-  /* ── Limpiar sesión runtime ── */
-  clearRuntimeSession() {
-    this._session = null;
-    sessionStorage.removeItem(this.SESSION_KEY);
+    try { return JSON.parse(sessionStorage.getItem(this.SESSION_KEY)); }
+    catch { return null; }
   },
 
   /* ── Check permission ── */
