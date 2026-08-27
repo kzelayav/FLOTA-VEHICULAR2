@@ -148,29 +148,37 @@ const App = {
   async init() {
     const boot = document.getElementById('boot-loading');
     try {
-      await DB.bootstrap();
+      const mode = Auth.getMode();
+      if (mode === 'supabase') {
+        await DB.bootstrap({ loadData: false });
+      } else {
+        await DB.bootstrap();
+      }
     } catch (err) {
       console.error('[App] Error en bootstrap:', err);
     }
     if (boot) boot.style.display = 'none';
 
-    // Resolver modo de autenticación
     const mode = Auth.getMode();
 
     if (mode === 'supabase') {
-      // Modo Supabase: limpiar sesión legacy, registrar listener, restaurar sesión
-      Auth.clearRuntimeSession();
       Auth.initAuthListener();
       const restored = await Auth.restoreSupabaseSession();
-      if (restored && Auth.getSession()) {
-        this.showApp();
-      } else {
+      if (!restored || !Auth.getSession()) {
         this.renderLogin();
         this.initLoginForm();
+        return;
+      }
+      try {
+        await DB.loadOperationalData();
+        this.showApp();
+      } catch (err) {
+        await Auth.logout();
+        this.renderLogin();
+        this.initLoginForm();
+        showToast('Error cargando datos. Intente de nuevo.', 'error');
       }
     } else {
-      // Modo Legacy: comportamiento actual
-      Auth._session = null; // limpiar adapter en memoria
       if (Auth.getSession()) {
         this.showApp();
       } else {
@@ -399,8 +407,14 @@ async function handleLogin() {
   try {
     const session = await Auth.login(email, pwd);
     if (!session) { showToast('Credenciales incorrectas','error'); return; }
-    showToast(`Bienvenido, ${session.name}!`, 'success');
-    setTimeout(() => App.showApp(), 400);
+    try {
+      await DB.loadOperationalData();
+      showToast(`Bienvenido, ${session.name}!`, 'success');
+      setTimeout(() => App.showApp(), 400);
+    } catch (err) {
+      await Auth.logout();
+      showToast('Error cargando datos. Intente de nuevo.', 'error');
+    }
   } catch (err) {
     showToast(err.message || 'Credenciales incorrectas', 'error');
   } finally {

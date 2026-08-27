@@ -135,10 +135,11 @@ newId() {
     return opPromise;
   },
 
-  /* ====================================================
-     BOOTSTRAP â€” inicializa Supabase, migra y llena caché
+/* ====================================================
+     BOOTSTRAP — inicializa Supabase, migra y llena caché
      ==================================================== */
-  async bootstrap() {
+  async bootstrap(opts = {}) {
+    const { loadData = true } = opts;
     if (this._ready) return this._ready;
 
     this._ready = (async () => {
@@ -146,19 +147,23 @@ newId() {
       this._setupSupabase();
 
       if (this.supabase) {
-        try {
-          await this._loadAllFromSupabase();
+        if (loadData) {
+          try {
+            await this._loadAllFromSupabase();
+            this.mode = 'supabase';
+
+            const seeded   = await this.seed();
+            if (seeded) await this._loadAllFromSupabase();
+
+            console.log('[DB] Conectado a Supabase. Modo:', this.mode);
+          } catch (err) {
+            console.error('[DB] No se pudo inicializar Supabase, usando LocalStorage:', err);
+            this.mode = 'localstorage';
+            this._loadFromLocalStorage();
+            await this.seed();
+          }
+        } else {
           this.mode = 'supabase';
-
-          const seeded   = await this.seed();
-          if (seeded) await this._loadAllFromSupabase();
-
-          console.log('[DB] Conectado a Supabase. Modo:', this.mode);
-        } catch (err) {
-          console.error('[DB] No se pudo inicializar Supabase, usando LocalStorage:', err);
-          this.mode = 'localstorage';
-          this._loadFromLocalStorage();
-          await this.seed();
         }
       } else {
         this.mode = 'localstorage';
@@ -260,6 +265,61 @@ newId() {
     this._cache.settings = s
       ? { currency: s.currency || 'Q', dateFormat: s.date_format || 'DD/MM/YYYY', alertDaysAhead: parseInt(s.alert_days_ahead) || 7 }
       : { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 };
+  },
+
+  /* ====================================================
+     LOAD OPERATIONAL DATA — Carga explícita tras autenticación
+     ==================================================== */
+  async loadOperationalData() {
+    if (this.mode !== 'supabase' || !this.supabase) {
+      throw new Error('Cliente Supabase no disponible o modo inválido');
+    }
+
+    const session = Auth.getSession();
+    if (!session || !session.id || !session.role || session.active !== true) {
+      throw new Error('Sesión Supabase inválida o perfil no disponible');
+    }
+
+    const { data: { session: sdkSession } } = await this.supabase.auth.getSession();
+    if (!sdkSession?.user || sdkSession.user.id !== session.id) {
+      throw new Error('Sesión SDK no coincide con adapter');
+    }
+
+    const [
+      assets, preventive, corrective, users, audit, expenses,
+      vehicles, drivers, alerts, docs
+    ] = await Promise.all([
+      this._selectAll('activos'),
+      this._selectWhere('mantenimientos', 'tipo', 'preventivo'),
+      this._selectWhere('mantenimientos', 'tipo', 'correctivo'),
+      this._selectAll('usuarios'),
+      this._selectAll('auditoria', 'ts', false),
+      this._selectAll('gastos'),
+      this._selectAll('vehiculos'),
+      this._selectAll('conductores'),
+      this._selectAll('alertas'),
+      this._selectAll('documentos'),
+    ]);
+
+    const s = await this._getSettingsRow();
+
+    const tempCache = {
+      assets: assets.map(r => this._fromAssetRow(r)),
+      preventive: preventive.map(r => this._fromPreventiveRow(r)),
+      corrective: corrective.map(r => this._fromCorrectiveRow(r)),
+      users: users.map(r => ({ ...r, createdAt: r.created_at, updatedAt: r.updated_at })),
+      audit: audit.map(r => ({ ...r, user: r.user_name })),
+      expenses: expenses.map(r => this._fromExpenseRow(r)),
+      vehicles: vehicles.map(r => this._fromRow('vehicles', r)),
+      drivers: drivers.map(r => this._fromRow('drivers', r)),
+      alerts: alerts.map(r => this._fromAlertRow(r)),
+      documents: docs.map(r => this._fromRow('documents', r)),
+      settings: s
+        ? { currency: s.currency || 'Q', dateFormat: s.date_format || 'DD/MM/YYYY', alertDaysAhead: parseInt(s.alert_days_ahead) || 7 }
+        : { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 }
+    };
+
+    Object.assign(this._cache, tempCache);
   },
 
   /* ====================================================
