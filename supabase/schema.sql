@@ -606,3 +606,56 @@ USING (
 );
 
 COMMIT;
+
+-- ============================ AUDITORIA RLS (F2F.7-B) ================================
+-- Policies restrictivas por rol, datos compartidos.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS auditoria_select ON public.auditoria;
+DROP POLICY IF EXISTS auditoria_insert ON public.auditoria;
+DROP POLICY IF EXISTS auditoria_delete ON public.auditoria;
+DROP POLICY IF EXISTS allow_all_auditoria ON public.auditoria;
+
+REVOKE ALL ON public.auditoria FROM anon;
+REVOKE ALL ON public.auditoria FROM authenticated;
+REVOKE ALL ON public.auditoria FROM PUBLIC;
+
+GRANT SELECT, INSERT, DELETE ON public.auditoria TO authenticated;
+
+CREATE POLICY auditoria_select ON public.auditoria
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+);
+
+CREATE POLICY auditoria_insert ON public.auditoria
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+CREATE POLICY auditoria_delete ON public.auditoria
+FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+);
+
+COMMIT;
