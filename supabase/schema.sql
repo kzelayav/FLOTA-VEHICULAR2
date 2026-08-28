@@ -734,3 +734,72 @@ USING (
 );
 
 COMMIT;
+
+-- ==========================================
+-- ACTIVOS RLS (F2F.9)
+-- ==========================================
+BEGIN;
+
+DROP POLICY IF EXISTS activos_select ON public.activos;
+DROP POLICY IF EXISTS activos_insert ON public.activos;
+DROP POLICY IF EXISTS activos_update ON public.activos;
+DROP POLICY IF EXISTS activos_delete ON public.activos;
+DROP POLICY IF EXISTS allow_all_activos ON public.activos;
+
+REVOKE ALL ON public.activos FROM anon, authenticated, PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.activos TO authenticated;
+
+CREATE POLICY activos_select ON public.activos
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+CREATE POLICY activos_insert ON public.activos
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY activos_update ON public.activos
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY activos_delete ON public.activos
+FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+);
+
+COMMIT;
+
