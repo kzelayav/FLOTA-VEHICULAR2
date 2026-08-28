@@ -29,11 +29,13 @@ const AssetsModule = {
       <div class="page-header-right">
         <button class="btn btn-outline btn-sm" onclick="AssetsModule.toggleView()" id="btn-toggle-view">📋 Vista Tarjetas</button>
         ${Auth.can('assets') && !['consulta'].includes(Auth.getSession()?.role) ? `
+          ${Auth.isAdmin() ? `
           <button class="btn btn-outline btn-sm" onclick="AssetsModule.downloadTemplate()">📂 Plantilla Excel</button>
           <button class="btn btn-outline btn-sm" onclick="document.getElementById('assets-import-file').click()" style="display:inline-flex; align-items:center; gap:6px;">
             📤 Importar Excel
           </button>
           <input type="file" id="assets-import-file" style="display:none" accept=".xlsx,.xls,.csv" onchange="AssetsModule.importExcel(event)">
+          ` : ''}
           <button class="btn btn-primary" onclick="AssetsModule.openModal()">➕ Nuevo Activo</button>
         ` : ''}
       </div>
@@ -152,8 +154,8 @@ const AssetsModule = {
               <td>
                 <div class="table-actions">
                   <button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.viewDetail('${a.id}')" title="Ver detalle">👁️</button>
-                  ${canEdit?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.openModal('${a.id}')" title="Editar">✏️</button>
-                  <button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.deleteAsset('${a.id}')" title="Eliminar">🗑️</button>`:''}
+                  ${canEdit?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.openModal('${a.id}')" title="Editar">✏️</button>`:''}
+                  ${Auth.isAdmin()?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.deleteAsset('${a.id}')" title="Eliminar">🗑️</button>`:''}
                 </div>
               </td>
             </tr>`).join('')}
@@ -345,6 +347,10 @@ const AssetsModule = {
   },
 
     async deleteAsset(id) {
+    if (!Auth.isAdmin()) {
+      showToast('Solo un administrador puede eliminar activos', 'error');
+      return;
+    }
     const a = DB.getAsset(id);
     if (!confirm(`¿Eliminar activo ${a?.code}? Esta acción no se puede deshacer.`)) return;
     
@@ -401,6 +407,10 @@ const AssetsModule = {
   },
 
   importExcel(event) {
+    if (!Auth.isAdmin()) {
+      showToast('Solo un administrador puede importar activos', 'error');
+      return;
+    }
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
