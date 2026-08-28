@@ -236,11 +236,10 @@ newId() {
   },
 
   async _loadAllFromSupabase() {
-    const [assets, preventive, corrective, users, audit, expenses, vehicles, drivers, alerts, docs] = await Promise.all([
+    const [assets, preventive, corrective, audit, expenses, vehicles, drivers, alerts, docs] = await Promise.all([
       this._selectAll('activos'),
       this._selectWhere('mantenimientos', 'tipo', 'preventivo'),
       this._selectWhere('mantenimientos', 'tipo', 'correctivo'),
-      this._selectAll('usuarios'),
       this._selectAll('auditoria', 'ts', false),
       this._selectAll('gastos'),
       this._selectAll('vehiculos'),
@@ -252,7 +251,6 @@ newId() {
     this._cache.assets     = assets.map(r => this._fromRow('assets', r));
     this._cache.preventive = preventive.map(r => this._fromRow('preventive', r));
     this._cache.corrective = corrective.map(r => this._fromRow('corrective', r));
-    this._cache.users      = users.map(r => this._fromRow('users', r));
     this._cache.audit      = audit.map(r => this._fromRow('audit', r));
     this._cache.expenses   = expenses.map(r => this._fromRow('expenses', r));
     this._cache.vehicles   = vehicles.map(r => this._fromRow('vehicles', r));
@@ -285,13 +283,12 @@ newId() {
     }
 
     const [
-      assets, preventive, corrective, users, audit, expenses,
+      assets, preventive, corrective, audit, expenses,
       vehicles, drivers, alerts, docs
     ] = await Promise.all([
       this._selectAll('activos'),
       this._selectWhere('mantenimientos', 'tipo', 'preventivo'),
       this._selectWhere('mantenimientos', 'tipo', 'correctivo'),
-      this._selectAll('usuarios'),
       this._selectAll('auditoria', 'ts', false),
       this._selectAll('gastos'),
       this._selectAll('vehiculos'),
@@ -306,7 +303,6 @@ newId() {
       assets: assets.map(r => this._fromAssetRow(r)),
       preventive: preventive.map(r => this._fromPreventiveRow(r)),
       corrective: corrective.map(r => this._fromCorrectiveRow(r)),
-      users: users.map(r => ({ ...r, createdAt: r.created_at, updatedAt: r.updated_at })),
       audit: audit.map(r => ({ ...r, user: r.user_name })),
       expenses: expenses.map(r => this._fromExpenseRow(r)),
       vehicles: vehicles.map(r => this._fromRow('vehicles', r)),
@@ -319,6 +315,62 @@ newId() {
     };
 
     Object.assign(this._cache, tempCache);
+  },
+
+  /* ====================================================
+     USERS — Carga administrativa bajo demanda (F2F.10-C)
+     ==================================================== */
+  _usersLoadPromise: null,
+
+  clearUsersCache() {
+    this._cache.users = [];
+    this._usersLoadPromise = null;
+  },
+
+  async loadUsersForAdmin() {
+    if (!Auth.isAdmin()) {
+      this.clearUsersCache();
+      throw new Error('Solo administradores pueden cargar usuarios');
+    }
+    if (this.mode !== 'supabase' || !this.supabase) {
+      this.clearUsersCache();
+      throw new Error('Cliente Supabase no disponible');
+    }
+
+    // Evitar consultas duplicadas simultáneas
+    if (this._usersLoadPromise) {
+      return this._usersLoadPromise;
+    }
+
+    this._usersLoadPromise = (async () => {
+      try {
+        // Seleccionar únicamente columnas seguras (sin password)
+        const { data, error } = await this.supabase
+          .from('usuarios')
+          .select('id,name,email,role,active,avatar,created_at,updated_at')
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+
+        this._cache.users = (data || []).map(r => ({
+          id: r.id,
+          name: r.name,
+          email: r.email,
+          role: r.role,
+          active: r.active,
+          avatar: r.avatar || '',
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        }));
+        return this._cache.users;
+      } catch (err) {
+        this.clearUsersCache();
+        throw err;
+      } finally {
+        this._usersLoadPromise = null;
+      }
+    })();
+
+    return this._usersLoadPromise;
   },
 
   /* ====================================================

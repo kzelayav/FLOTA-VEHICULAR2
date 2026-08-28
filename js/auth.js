@@ -130,6 +130,10 @@ const Auth = {
 
     // 3. Limpiar residuos legacy
     try { sessionStorage.removeItem('fleet_session'); } catch {}
+    
+    // 4. Limpiar caché de usuarios (F2F.10-C)
+    try { if (DB?.clearUsersCache) DB.clearUsersCache(); } catch {}
+
     this._session = null;
 
     // No registrar auditoría aquí (ya se hizo arriba)
@@ -143,6 +147,8 @@ const Auth = {
     const result = client.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         this._session = null;
+        // Limpiar caché de usuarios (F2F.10-C)
+        try { if (DB?.clearUsersCache) DB.clearUsersCache(); } catch {}
         // La recarga oficial la hace handleLogout(); aquí solo limpiamos estado
       }
       // SIGNED_IN: no hacer nada (login explícito ya cargó profile)

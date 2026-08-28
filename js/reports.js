@@ -328,88 +328,100 @@ const ReportsModule = {
    ==================================================== */
 
 const UsersModule = {
+  _loading: false,
+  _loaded: false,
+  _error: null,
+
+  async init() {
+    if (!Auth.isAdmin()) return;
+    if (this._loading || this._loaded) return;
+    this._loading = true;
+    this._error = null;
+    // Trigger render to show loading state
+    App.navigate('users');
+    try {
+      await DB.loadUsersForAdmin();
+      this._loaded = true;
+    } catch (err) {
+      this._error = err.message || 'Error cargando usuarios';
+      showToast(this._error, 'error');
+    } finally {
+      this._loading = false;
+      App.navigate('users');
+    }
+  },
+
   render() {
     if (!Auth.isAdmin()) return `<div class="empty-state"><div class="empty-icon">🔒</div><h3>Acceso Denegado</h3><p>Solo los administradores pueden gestionar usuarios.</p></div>`;
+
     const users = DB.getUsers();
+
+    // Loading state
+    if (this._loading) {
+      return `
+      <div class="page-header">
+        <div class="page-header-left"><h2>👥 Gestión de Usuarios</h2><p>Administración de cuentas y roles</p></div>
+      </div>
+      <div class="card" style="padding:40px;text-align:center">
+        <div class="spinner" style="margin:0 auto"></div>
+        <p class="text-muted mt-16">Cargando usuarios...</p>
+      </div>`;
+    }
+
+    // Error state
+    if (this._error) {
+      return `
+      <div class="page-header">
+        <div class="page-header-left"><h2>👥 Gestión de Usuarios</h2><p>Administración de cuentas y roles</p></div>
+      </div>
+      <div class="card" style="padding:40px;text-align:center">
+        <div class="empty-icon">⚠️</div>
+        <h3>Error al cargar usuarios</h3>
+        <p class="text-muted">${this._error}</p>
+        <button class="btn btn-primary mt-16" onclick="UsersModule.init()">Reintentar</button>
+      </div>`;
+    }
+
+    // Read-only notice
+    const notice = `
+    <div class="card mb-16" style="background:var(--warning-bg);border-color:var(--warning-border);color:var(--warning-text)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <strong>Solo lectura temporal</strong><br>
+          La gestión de usuarios se realiza mediante Supabase Auth durante la migración.
+        </div>
+      </div>
+    </div>`;
+
     return `
     <div class="page-header">
       <div class="page-header-left"><h2>👥 Gestión de Usuarios</h2><p>Administración de cuentas y roles</p></div>
-      <div class="page-header-right"><button class="btn btn-primary" onclick="UsersModule.openModal()">➕ Nuevo Usuario</button></div>
     </div>
+    ${notice}
     <div class="card" style="padding:0">
       <div class="table-wrapper">
         <table>
-          <thead><tr><th>Avatar</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Avatar</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th></tr></thead>
           <tbody>
-            ${users.map(u=>{
-              const roleInfo = Auth.getRoleInfo(u.role);
-              return `<tr>
-                <td><div class="user-avatar" style="width:32px;height:32px;font-size:12px">${u.avatar||u.name[0]}</div></td>
-                <td class="fw-700">${u.name}</td>
-                <td class="text-muted text-sm">${u.email}</td>
-                <td><span class="badge badge-${roleInfo.color}">${roleInfo.icon} ${roleInfo.label}</span></td>
-                <td>${u.active?'<span class="badge badge-success">Activo</span>':'<span class="badge badge-danger">Inactivo</span>'}</td>
-                <td>
-                  <div class="table-actions">
-                    <button class="btn btn-outline btn-icon btn-sm" onclick="UsersModule.openModal('${u.id}')">✏️</button>
-                    ${u.id !== Auth.getSession()?.id ? `<button class="btn btn-outline btn-icon btn-sm" onclick="UsersModule.toggle('${u.id}')">${u.active?'🚫':'✅'}</button>` : ''}
-                  </div>
-                </td>
-              </tr>`;
-            }).join('')}
+            ${users.length === 0
+              ? `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--muted)">No hay usuarios cargados</td></tr>`
+              : users.map(u=>{
+                  const roleInfo = Auth.getRoleInfo(u.role);
+                  return `<tr>
+                    <td><div class="user-avatar" style="width:32px;height:32px;font-size:12px">${u.avatar||u.name[0]}</div></td>
+                    <td class="fw-700">${u.name}</td>
+                    <td class="text-muted text-sm">${u.email}</td>
+                    <td><span class="badge badge-${roleInfo.color}">${roleInfo.icon} ${roleInfo.label}</span></td>
+                    <td>${u.active?'<span class="badge badge-success">Activo</span>':'<span class="badge badge-danger">Inactivo</span>'}</td>
+                  </tr>`;
+                }).join('')
+            }
           </tbody>
         </table>
       </div>
     </div>
     <div id="usr-modal-placeholder"></div>`;
-  },
-
-  openModal(id = null) {
-    const user = id ? DB.getUsers().find(u=>u.id===id) : null;
-    const v = user || { name:'', email:'', password:'', role:'tecnico', active:true };
-    showModal('usr-modal-placeholder', id ? '✏️ Editar Usuario' : '➕ Nuevo Usuario', `
-    <div class="form-grid">
-      <div class="form-group"><label class="form-label">Nombre Completo</label><input class="form-control" id="uf-name" value="${v.name}"></div>
-      <div class="form-group"><label class="form-label">Email</label><input class="form-control" type="email" id="uf-email" value="${v.email}"></div>
-      <div class="form-group"><label class="form-label">Contraseña ${id?'(dejar vacío para no cambiar)':''}</label><input class="form-control" type="password" id="uf-pwd" placeholder="Contraseña..."></div>
-      <div class="form-group"><label class="form-label">Rol</label>
-        <select class="form-control" id="uf-role">
-          ${Object.entries(Auth.ROLES).map(([k,r])=>`<option value="${k}" ${v.role===k?'selected':''}>${r.icon} ${r.label}</option>`).join('')}
-        </select>
-      </div>
-    </div>`,
-    `<button class="btn btn-secondary" onclick="closeModal('usr-modal-placeholder')">Cancelar</button>
-     <button class="btn btn-primary" onclick="UsersModule.save('${id||''}')">💾 Guardar</button>`);
-  },
-
-  save(id) {
-    const get = sel => document.getElementById(sel)?.value?.trim();
-    const name = get('uf-name'), email = get('uf-email'), pwd = get('uf-pwd'), role = get('uf-role');
-    if (!name || !email) { showToast('Nombre y email son obligatorios','error'); return; }
-    const data = { name, email, role, avatar: name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2), active:true };
-    if (pwd) data.password = pwd;
-    const session = Auth.getSession();
-    if (id) {
-      DB.updateUser(id, data);
-      DB.addAudit({ user:session.name, action:'UPDATE', detail:`Usuario actualizado: ${name}` });
-      showToast('Usuario actualizado','success');
-    } else {
-      if (!pwd) { showToast('La contraseña es obligatoria','error'); return; }
-      DB.addUser({ ...data, password: pwd });
-      DB.addAudit({ user:session.name, action:'CREATE', detail:`Usuario creado: ${name} (${role})` });
-      showToast('Usuario creado','success');
-    }
-    closeModal('usr-modal-placeholder');
-    App.navigate('users');
-  },
-
-  toggle(id) {
-    const u = DB.getUsers().find(x=>x.id===id);
-    if (!u) return;
-    DB.updateUser(id, { active: !u.active });
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'UPDATE', detail:`Usuario ${u.active?'desactivado':'activado'}: ${u.name}` });
-    showToast(`Usuario ${u.active?'desactivado':'activado'}`,'success');
-    App.navigate('users');
   },
 };
 
