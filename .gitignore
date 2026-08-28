@@ -14,6 +14,29 @@ temp_*
 new_save_*
 *.bak
 
+# Local backups (F2H)
+.backup_*/
+
+# Diagnostic scripts (local only)
+check_*.py
+
+# Diagnostic outputs
+*_output.txt
+js_assets_search.txt
+rls_output.txt
+
+# Local rollback files (not versioned)
+F2F10B_ROLLBACK.md
+F2F10C_ROLLBACK.md
+F2F10D_ROLLBACK.md
+F2G_ROLLBACK.md
+supabase/rollback_f2f10a.sql
+
+# Sensitive exports (never commit)
+*.dump
+*.sql.backup
+*.csv.backup
+
 # Environment files
 .env
 .env.local
