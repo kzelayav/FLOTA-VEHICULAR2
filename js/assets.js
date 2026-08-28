@@ -413,66 +413,248 @@ const AssetsModule = {
     }
     const file = event.target.files[0];
     if (!file) return;
+
+    const fileInput = document.getElementById('assets-import-file');
+    if (fileInput) fileInput.disabled = true;
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
+
+        if (workbook.SheetNames.length === 0) {
+          throw new Error("El archivo no contiene hojas.");
+        }
+        
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        const json = XLSX.utils.sheet_to_json(worksheet, { defval: null });
 
-        if (json.length === 0) { showToast('El archivo está vacío o tiene un formato incorrecto', 'error'); return; }
+        if (json.length === 0) { 
+          throw new Error('La primera hoja está vacía o tiene un formato incorrecto.'); 
+        }
 
-        let imported = 0;
-        const pending = [];
-        json.forEach(row => {
-          const code = row['Código'] || row['Codigo'] || row['CODE'];
-          const type = row['Tipo'] || row['Type'] || 'Desconocido';
-          if (!code) return;
+        const validTypes = ['Motocicleta','Camioneta','Carro','Camión','Montacarga','Cabezal','Remolque','Tractor','Generador','Equipo Industrial'];
+        const validStatuses = ['operativo', 'mantenimiento', 'fuera'];
+        
+        const normalizeCode = value => String(value ?? '').trim().toUpperCase();
 
-          const newAsset = {
-            id: DB.newId(),
-            code: String(code).trim(),
-            type: String(type).trim(),
-            brand: String(row['Marca'] || row['Brand'] || ''),
-            model: String(row['Modelo'] || row['Model'] || ''),
-            year: parseInt(row['Año'] || row['Year'] || new Date().getFullYear()) || new Date().getFullYear(),
-            plate: String(row['Placa'] || row['Plate'] || ''),
-            serial: String(row['Número de Serie'] || row['Serie'] || row['Serial'] || ''),
-            location: String(row['Ubicación'] || row['Location'] || row['Planta'] || ''),
-            area: String(row['Área'] || row['Area'] || ''),
-            localidad: String(row['Localidad'] || ''),
-            departamento: String(row['Departamento'] || ''),
-            usuario: String(row['Usuario'] || ''),
-            responsible: String(row['Responsable'] || row['Responsible'] || ''),
-            status: String(row['Estado'] || row['Status'] || 'operativo').toLowerCase(),
-            currentKm: parseFloat(row['Kilometraje'] || row['Km'] || 0),
-            currentHours: parseFloat(row['Horómetro'] || row['Hours'] || 0),
-            inspectionDate: row['Inspección (Fecha vencimiento)'] || row['Inspección'] || row['InspectionDate'] || '',
-            notes: String(row['Notas'] || row['Notes'] || ''),
-            createdAt: new Date().toISOString()
+        const currentAssets = DB.getAssets();
+        const codeMap = new Map();
+        
+        let ambiguousCodes = 0;
+        currentAssets.forEach(a => {
+          const c = normalizeCode(a.code);
+          if (c) {
+            if (codeMap.has(c)) {
+               ambiguousCodes++;
+            }
+            codeMap.set(c, a);
+          }
+        });
+        
+        let processedRows = 0;
+        let newCount = 0;
+        let updateCount = 0;
+        let errors = [];
+        let internalDupes = 0;
+        let batch = [];
+        const seenCodes = new Set();
+        
+        for (let i = 0; i < json.length; i++) {
+          const row = json[i];
+          if (Object.values(row).every(v => v === null || v === '' || v === undefined)) continue;
+          
+          processedRows++;
+          if (processedRows > 500) {
+            throw new Error("El archivo excede el límite de 500 filas no vacías.");
+          }
+          
+          const rawCode = row['Código'] ?? row['Codigo'] ?? row['CODE'];
+          if (rawCode === undefined) {
+             throw new Error("El encabezado 'Código' está ausente en el archivo.");
+          }
+          
+          const code = normalizeCode(rawCode);
+          if (!code) {
+             errors.push(`Fila ${i+2}: Código vacío.`);
+             continue;
+          }
+          
+          if (seenCodes.has(code)) {
+             internalDupes++;
+             errors.push(`Fila ${i+2}: Código duplicado en el archivo.`);
+             continue;
+          }
+          seenCodes.add(code);
+          
+          const rawType = String(row['Tipo'] ?? row['Type'] ?? '').trim();
+          const matchedType = validTypes.find(t => t.toLowerCase() === rawType.toLowerCase());
+          if (!matchedType) {
+            errors.push(`Fila ${i+2}: Tipo desconocido.`);
+            continue;
+          }
+          
+          const rawStatus = String(row['Estado'] ?? row['Status'] ?? '').trim().toLowerCase();
+          if (!validStatuses.includes(rawStatus)) {
+            errors.push(`Fila ${i+2}: Status desconocido.`);
+            continue;
+          }
+
+          const rawYear = row['Año'] ?? row['Year'];
+          const year = rawYear !== null && rawYear !== '' ? parseInt(rawYear) : null;
+          if (year !== null && (isNaN(year) || year < 1900 || year > 2100)) {
+            errors.push(`Fila ${i+2}: Año inválido.`);
+            continue;
+          }
+          
+          const rawKm = row['Kilometraje'] ?? row['Km'];
+          const km = rawKm !== null && rawKm !== '' && rawKm !== undefined ? parseFloat(rawKm) : null;
+          if (km !== null && (isNaN(km) || km < 0)) {
+            errors.push(`Fila ${i+2}: Kilometraje negativo.`);
+            continue;
+          }
+          
+          const rawHours = row['Horómetro'] ?? row['Hours'];
+          const hours = rawHours !== null && rawHours !== '' && rawHours !== undefined ? parseFloat(rawHours) : null;
+          if (hours !== null && (isNaN(hours) || hours < 0)) {
+            errors.push(`Fila ${i+2}: Horas negativas.`);
+            continue;
+          }
+          
+          const rawDate = row['Inspección (Fecha vencimiento)'] ?? row['Inspección'] ?? row['InspectionDate'];
+          if (rawDate !== null && rawDate !== '' && rawDate !== undefined) {
+             const d = new Date(rawDate);
+             if (isNaN(d.getTime())) {
+                errors.push(`Fila ${i+2}: Fecha inválida.`);
+                continue;
+             }
+          }
+
+          const getValue = (val, existingVal, isNew) => {
+            if (val === null || val === undefined || String(val).trim() === '') {
+              return isNew ? '' : existingVal;
+            }
+            return String(val).trim();
+          };
+          const getNum = (val, existingVal, isNew) => {
+             if (val === null || val === undefined || String(val).trim() === '') {
+                return isNew ? 0 : existingVal;
+             }
+             return parseFloat(val);
           };
 
-          if (!['operativo','mantenimiento','fuera'].includes(newAsset.status)) newAsset.status = 'operativo';
-          pending.push(newAsset);
-          imported++;
-        });
-
-        if (pending.length) DB.bulkAddAssets(pending);
-
-        if (imported > 0) {
-          DB.addAudit({ user:Auth.getSession()?.name||'', action:'CREATE', detail:`Importación masiva: ${imported} activos cargados` });
-          showToast(`Importación exitosa: ${imported} activos cargados`, 'success');
-          document.getElementById('assets-content').innerHTML = this.renderContent();
-        } else {
-          showToast('No se encontraron datos válidos para importar', 'error');
+          const existingAsset = codeMap.get(code);
+          const isNew = !existingAsset;
+          
+          if (isNew) {
+            newCount++;
+            batch.push({
+              id: DB.newId(),
+              code: code,
+              type: matchedType,
+              brand: getValue(row['Marca'] ?? row['Brand'], '', true),
+              model: getValue(row['Modelo'] ?? row['Model'], '', true),
+              year: year !== null ? year : new Date().getFullYear(),
+              plate: getValue(row['Placa'] ?? row['Plate'], '', true),
+              serial: getValue(row['Número de Serie'] ?? row['Serie'] ?? row['Serial'], '', true),
+              location: getValue(row['Ubicación'] ?? row['Location'] ?? row['Planta'], '', true),
+              area: getValue(row['Área'] ?? row['Area'], '', true),
+              localidad: getValue(row['Localidad'], '', true),
+              departamento: getValue(row['Departamento'], '', true),
+              usuario: getValue(row['Usuario'], '', true),
+              responsible: getValue(row['Responsable'] ?? row['Responsible'], '', true),
+              status: rawStatus,
+              currentKm: getNum(rawKm, 0, true),
+              currentHours: getNum(rawHours, 0, true),
+              inspectionDate: getValue(rawDate, '', true),
+              notes: getValue(row['Notas'] ?? row['Notes'], '', true),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          } else {
+            updateCount++;
+            batch.push({
+              id: existingAsset.id,
+              code: existingAsset.code,
+              type: matchedType,
+              brand: getValue(row['Marca'] ?? row['Brand'], existingAsset.brand, false),
+              model: getValue(row['Modelo'] ?? row['Model'], existingAsset.model, false),
+              year: year !== null ? year : existingAsset.year,
+              plate: getValue(row['Placa'] ?? row['Plate'], existingAsset.plate, false),
+              serial: getValue(row['Número de Serie'] ?? row['Serie'] ?? row['Serial'], existingAsset.serial, false),
+              location: getValue(row['Ubicación'] ?? row['Location'] ?? row['Planta'], existingAsset.location, false),
+              area: getValue(row['Área'] ?? row['Area'], existingAsset.area, false),
+              localidad: getValue(row['Localidad'], existingAsset.localidad, false),
+              departamento: getValue(row['Departamento'], existingAsset.departamento, false),
+              usuario: getValue(row['Usuario'], existingAsset.usuario, false),
+              responsible: getValue(row['Responsable'] ?? row['Responsible'], existingAsset.responsible, false),
+              status: rawStatus,
+              currentKm: getNum(rawKm, existingAsset.currentKm, false),
+              currentHours: getNum(rawHours, existingAsset.currentHours, false),
+              inspectionDate: getValue(rawDate, existingAsset.inspectionDate, false),
+              notes: getValue(row['Notas'] ?? row['Notes'], existingAsset.notes, false),
+              createdAt: existingAsset.createdAt,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+        
+        if (ambiguousCodes > 0) {
+           errors.push(`Error crítico: Hay ${ambiguousCodes} conflictos ambiguos en la base de datos.`);
+        }
+        
+        const hasBlockingErrors = errors.length > 0 || internalDupes > 0 || ambiguousCodes > 0;
+        const expectedTotal = currentAssets.length + newCount;
+        
+        let warningHtml = workbook.SheetNames.length > 1 ? `<div class="alert alert-warning mb-12">Advertencia: El archivo tiene varias hojas. Solo se procesó "${firstSheetName}".</div>` : '';
+        let errorsHtml = hasBlockingErrors ? `<div class="alert alert-danger mb-12"><strong>Errores bloqueantes (${errors.length}):</strong><ul style="margin-top:8px;margin-bottom:0;padding-left:20px;font-size:0.9em;max-height:100px;overflow-y:auto">` + errors.slice(0, 10).map(e => `<li>${e}</li>`).join('') + (errors.length > 10 ? `<li>...y ${errors.length - 10} más.</li>` : '') + `</ul></div>` : '';
+        
+        showModal('asset-modal-placeholder', 'Vista Previa de Importación', `
+          ${warningHtml}
+          ${errorsHtml}
+          <div class="form-grid" style="gap:12px;margin-bottom:20px">
+            <div><div class="form-label">Hoja Procesada</div><div class="fw-700">${firstSheetName}</div></div>
+            <div><div class="form-label">Filas No Vacías</div><div class="fw-700">${processedRows}</div></div>
+            <div><div class="form-label">Nuevos Activos</div><div class="fw-700 text-success">${newCount}</div></div>
+            <div><div class="form-label">A Actualizar</div><div class="fw-700 text-primary">${updateCount}</div></div>
+            <div><div class="form-label">Duplicados Archivo</div><div class="fw-700 ${internalDupes > 0 ? 'text-danger' : 'text-muted'}">${internalDupes}</div></div>
+            <div><div class="form-label">Total Esperado</div><div class="fw-700">${expectedTotal}</div></div>
+          </div>
+          <div class="modal-actions" style="margin-top:20px">
+            <button class="btn btn-secondary" onclick="if(document.getElementById('assets-import-file')) { document.getElementById('assets-import-file').disabled = false; document.getElementById('assets-import-file').value = ''; } closeModal('asset-modal-placeholder')">Cancelar</button>
+            <button class="btn btn-primary" id="confirm-import-btn" ${hasBlockingErrors ? 'disabled' : ''}>Confirmar Importación</button>
+          </div>
+        `);
+        
+        if (!hasBlockingErrors) {
+           document.getElementById('confirm-import-btn').onclick = async () => {
+             const btn = document.getElementById('confirm-import-btn');
+             btn.disabled = true;
+             btn.textContent = 'Importando...';
+             try {
+                await DB.importAssets(batch);
+                await DB.reloadAssetsFromSupabase();
+                DB.addAudit({ user:Auth.getSession()?.name||'', action:'IMPORT_ACTIVOS', detail:`Importación finalizada: nuevos ${newCount}, actualizados ${updateCount}, rechazados 0` });
+                showToast(`Importación exitosa.`, 'success');
+                document.getElementById('assets-content').innerHTML = this.renderContent();
+                closeModal('asset-modal-placeholder');
+             } catch (importErr) {
+                console.error('Error guardando importación:', importErr);
+                showToast('Error en la importación: ' + importErr.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Confirmar Importación';
+             } finally {
+                if (fileInput) { fileInput.disabled = false; fileInput.value = ''; }
+             }
+           };
         }
       } catch (err) {
-        console.error('Error importando excel:', err);
+        console.error('Error preparando excel:', err);
         showToast('Error procesando el archivo: ' + err.message, 'error');
+        if (fileInput) { fileInput.disabled = false; fileInput.value = ''; }
       }
-      event.target.value = ''; // reset input
     };
     reader.readAsArrayBuffer(file);
   },

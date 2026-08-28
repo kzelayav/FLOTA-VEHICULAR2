@@ -1,4 +1,4 @@
-﻿/* ====================================================
+/* ====================================================
    DATA LAYER â€” Supabase CRUD + Cache + Migración LocalStorage
    ------------------------------------------------
    La capa de datos mantiene la MISMA API que antes
