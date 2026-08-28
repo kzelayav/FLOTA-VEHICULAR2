@@ -659,3 +659,78 @@ USING (
 );
 
 COMMIT;
+
+-- ============================ MANTENIMIENTOS RLS (F2F.8) ================================
+-- Policies restrictivas por rol, datos compartidos.
+-- Requiere profiles (F2B) y Auth antes de datos (F2F-A).
+-- Ejecutar en transacción manual en SQL Editor.
+
+BEGIN;
+
+DROP POLICY IF EXISTS mantenimientos_select ON public.mantenimientos;
+DROP POLICY IF EXISTS mantenimientos_insert ON public.mantenimientos;
+DROP POLICY IF EXISTS mantenimientos_update ON public.mantenimientos;
+DROP POLICY IF EXISTS mantenimientos_delete ON public.mantenimientos;
+DROP POLICY IF EXISTS allow_all_mantenimientos ON public.mantenimientos;
+
+REVOKE ALL ON public.mantenimientos FROM anon;
+REVOKE ALL ON public.mantenimientos FROM authenticated;
+REVOKE ALL ON public.mantenimientos FROM PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.mantenimientos TO authenticated;
+
+CREATE POLICY mantenimientos_select ON public.mantenimientos
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico','consulta')
+  )
+);
+
+CREATE POLICY mantenimientos_insert ON public.mantenimientos
+FOR INSERT TO authenticated
+WITH CHECK (
+  tipo IN ('preventivo', 'correctivo') AND
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY mantenimientos_update ON public.mantenimientos
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+)
+WITH CHECK (
+  tipo IN ('preventivo', 'correctivo') AND
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor','tecnico')
+  )
+);
+
+CREATE POLICY mantenimientos_delete ON public.mantenimientos
+FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role IN ('admin','supervisor')
+  )
+);
+
+COMMIT;
