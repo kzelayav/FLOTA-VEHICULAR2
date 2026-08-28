@@ -803,3 +803,77 @@ USING (
 
 COMMIT;
 
+-- ==========================================
+-- USUARIOS LEGACY RLS CONTAINMENT (F2F.10-A)
+-- ==========================================
+-- Contención temporal: solo admin activo puede acceder a public.usuarios.
+-- La tabla y la columna password se mantienen temporalmente.
+-- UsersModule permanece disponible para admin mientras se prepara su migración.
+BEGIN;
+
+DROP POLICY IF EXISTS usuarios_select ON public.usuarios;
+DROP POLICY IF EXISTS usuarios_insert ON public.usuarios;
+DROP POLICY IF EXISTS usuarios_update ON public.usuarios;
+DROP POLICY IF EXISTS usuarios_delete ON public.usuarios;
+DROP POLICY IF EXISTS allow_all_usuarios ON public.usuarios;
+
+REVOKE ALL ON public.usuarios FROM anon;
+REVOKE ALL ON public.usuarios FROM authenticated;
+REVOKE ALL ON public.usuarios FROM PUBLIC;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.usuarios TO authenticated;
+
+CREATE POLICY usuarios_select ON public.usuarios
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+);
+
+CREATE POLICY usuarios_insert ON public.usuarios
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+);
+
+CREATE POLICY usuarios_update ON public.usuarios
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+);
+
+CREATE POLICY usuarios_delete ON public.usuarios
+FOR DELETE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND active = true
+      AND role = 'admin'
+  )
+);
+
+COMMIT;
+
