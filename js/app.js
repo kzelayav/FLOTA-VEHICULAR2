@@ -146,6 +146,7 @@ const App = {
 
   /* ── Init ── */
   async init() {
+    clearLegacyResidues();
     const boot = document.getElementById('boot-loading');
     try {
       const mode = Auth.getMode();
@@ -244,11 +245,6 @@ const App = {
         handleLogin();
       });
     }
-    document.querySelectorAll('.demo-user-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        handleDemoLogin(btn.dataset.email, btn.dataset.password);
-      });
-    });
     const togglePwd = document.querySelector('.toggle-password');
     if (togglePwd) {
       togglePwd.addEventListener('click', () => {
@@ -422,12 +418,6 @@ async function handleLogin() {
   }
 }
 
-function handleDemoLogin(email, password) {
-  document.getElementById('login-email').value = email;
-  document.getElementById('login-pwd').value   = password;
-  handleLogin();
-}
-
 async function handleLogout() {
   await Auth.logout();
   location.reload();
@@ -436,5 +426,10 @@ async function handleLogout() {
 /* ====================================================
    START
    ==================================================== */
+
+function clearLegacyResidues() {
+  try { sessionStorage.removeItem('fleet_session'); } catch {}
+  try { localStorage.removeItem('fleet_users'); } catch {}
+}
 
 document.addEventListener('DOMContentLoaded', () => App.init());

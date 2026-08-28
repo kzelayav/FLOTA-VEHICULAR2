@@ -3,8 +3,6 @@
    ==================================================== */
 
 const Auth = {
-  SESSION_KEY: 'fleet_session',
-
   ROLES: {
     admin:      { label:'Administrador', color:'primary', icon:'👑', perms: ['*'] },
     supervisor: { label:'Supervisor',    color:'info',    icon:'🔧', perms: ['dashboard','assets','preventive','corrective','alerts','reports'] },
@@ -20,38 +18,18 @@ const Auth = {
     try {
       const cfg = window.SUPABASE_CONFIG || {};
       const mode = cfg.authMode;
-      if (mode === 'legacy' || mode === 'supabase') return mode;
-      console.warn('[Auth] authMode inválido, usando legacy');
-      return 'legacy';
+      if (mode === 'supabase') return mode;
+      console.warn('[Auth] authMode no configurado como supabase, usando supabase');
+      return 'supabase';
     } catch {
-      return 'legacy';
+      console.warn('[Auth] Error leyendo configuración, usando supabase');
+      return 'supabase';
     }
   },
 
   /* ── Login unificado (async) ── */
   async login(email, password) {
-    const mode = this.getMode();
-    if (mode === 'supabase') {
-      return await this.loginSupabase(email, password);
-    }
-    return this.loginLegacy(email, password);
-  },
-
-  /* ── Login legacy (sync) ── */
-  loginLegacy(email, password) {
-    const users = DB.getUsers();
-    const user  = users.find(u => u.email === email && u.password === password && u.active);
-    if (!user) return null;
-    const session = { ...user };
-    delete session.password;
-    sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
-    this._session = session;
-    try {
-      DB.addAudit({ user: user.name, action: 'LOGIN', detail: `Inicio de sesión legacy` });
-    } catch {
-      console.warn('[Auth] Auditoría no disponible');
-    }
-    return session;
+    return await this.loginSupabase(email, password);
   },
 
   /* ── Login Supabase (async) ── */
@@ -121,34 +99,12 @@ const Auth = {
 
   /* ── Get current session (SYNC) ── */
   getSession() {
-    // Si ya tenemos adapter en memoria, devolverlo
-    if (this._session) return this._session;
-
-    const mode = this.getMode();
-    if (mode === 'supabase') {
-      // En modo supabase NO leer fleet_session
-      return this._session;
-    }
-
-    // Modo legacy: leer fleet_session
-    try {
-      const raw = sessionStorage.getItem(this.SESSION_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || !parsed.id) return null;
-      this._session = parsed;
-      return this._session;
-    } catch {
-      sessionStorage.removeItem(this.SESSION_KEY);
-      this._session = null;
-      return null;
-    }
+    return this._session;
   },
 
   /* ── Logout (async) ── */
   async logout() {
     const previousSession = this.getSession();
-    const mode = this.getMode();
 
     // 1. Persistir LOGOUT antes de cerrar sesión (mientras el JWT es válido)
     if (previousSession?.name) {
@@ -157,7 +113,7 @@ const Auth = {
           id: DB.newId(),
           user_name: previousSession.name,
           action: 'LOGOUT',
-          detail: `Cierre de sesión ${mode}`,
+          detail: `Cierre de sesión supabase`,
           ts: new Date().toISOString(),
         };
         await DB._persistAuditRow({ id: logoutEntry.id, user_name: logoutEntry.user_name, action: logoutEntry.action, detail: logoutEntry.detail, ts: logoutEntry.ts });
@@ -167,15 +123,13 @@ const Auth = {
     }
 
     // 2. Cerrar sesión en Supabase
-    if (mode === 'supabase') {
-      const client = DB.supabase;
-      if (client) {
-        await client.auth.signOut().catch(()=>{});
-      }
+    const client = DB.supabase;
+    if (client) {
+      await client.auth.signOut().catch(()=>{});
     }
 
-    // Limpiar siempre fleet_session por seguridad
-    sessionStorage.removeItem(this.SESSION_KEY);
+    // 3. Limpiar residuos legacy
+    try { sessionStorage.removeItem('fleet_session'); } catch {}
     this._session = null;
 
     // No registrar auditoría aquí (ya se hizo arriba)
@@ -189,7 +143,6 @@ const Auth = {
     const result = client.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         this._session = null;
-        sessionStorage.removeItem(this.SESSION_KEY);
         // La recarga oficial la hace handleLogout(); aquí solo limpiamos estado
       }
       // SIGNED_IN: no hacer nada (login explícito ya cargó profile)
@@ -208,7 +161,6 @@ const Auth = {
   /* ── Limpiar sesión runtime ── */
   clearRuntimeSession() {
     this._session = null;
-    sessionStorage.removeItem(this.SESSION_KEY);
   },
 
   /* ── Check permission ── */

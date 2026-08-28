@@ -22,7 +22,6 @@ const DB = {
     assets:     'fleet_assets',
     preventive: 'fleet_preventive',
     corrective: 'fleet_corrective',
-    users:      'fleet_users',
     audit:      'fleet_audit',
     settings:   'fleet_settings',
     seeded:     'fleet_seeded_v9',
@@ -340,12 +339,7 @@ newId() {
   },
 
   _seedData() {
-    const users = [
-      { id: 'u1', name: 'Administrador Sistema', email: 'admin@flota.com', password: 'admin123', role: 'admin', avatar: 'AS', active: true },
-      { id: 'u2', name: 'Angie Mendoza', email: 'AngieMendoza@flota.com', password: '1234', role: 'supervisor', avatar: 'AM', active: true },
-      { id: 'u3', name: 'Julissa Gonzalez', email: 'JulissaGonzalez@flota.com', password: '1234', role: 'supervisor', avatar: 'JG', active: true },
-      { id: 'u4', name: 'Sonia Moreno', email: 'SoniaMoreno@flota.com', password: '1234', role: 'supervisor', avatar: 'SM', active: true }
-    ];
+    const users = [];
     const assets = [];
     const preventive = [];
     const corrective = [];
@@ -357,7 +351,6 @@ newId() {
     const { users, assets, preventive, corrective } = this._seedData();
     const nowIso = new Date().toISOString();
 
-    await this._upsertRows('usuarios', users.map(u => ({ id: u.id, name: u.name, email: u.email, password: u.password, role: u.role, avatar: u.avatar, active: u.active })));
     await this._upsertRows('activos', assets.map(a => this._toAssetRow(a)));
     await this._upsertRows('mantenimientos', preventive.map(p => ({ ...this._toPreventiveRow(p), tipo: 'preventivo' })));
     await this._upsertRows('mantenimientos', corrective.map(c => ({ ...this._toCorrectiveRow(c), tipo: 'correctivo' })));
@@ -377,7 +370,6 @@ newId() {
 
   _writeSeedLocal() {
     const { users, assets, preventive, corrective } = this._seedData();
-    this.set(this.KEYS.users, users);
     this.set(this.KEYS.assets, assets);
     this.set(this.KEYS.preventive, preventive);
     this.set(this.KEYS.corrective, corrective);
@@ -933,7 +925,6 @@ newId() {
     this._cache.assets     = read(this.KEYS.assets, []);
     this._cache.preventive = read(this.KEYS.preventive, []);
     this._cache.corrective = read(this.KEYS.corrective, []);
-    this._cache.users      = read(this.KEYS.users, []);
     this._cache.audit      = read(this.KEYS.audit, []);
     this._cache.expenses   = read(this.KEYS.expenses, []);
     this._cache.vehicles   = read(this.KEYS.vehicles, []);
@@ -946,7 +937,7 @@ newId() {
   _keyToCache(key) {
     return {
       [this.KEYS.assets]: 'assets', [this.KEYS.preventive]: 'preventive', [this.KEYS.corrective]: 'corrective',
-      [this.KEYS.users]: 'users', [this.KEYS.audit]: 'audit', [this.KEYS.settings]: 'settings',
+      [this.KEYS.audit]: 'audit', [this.KEYS.settings]: 'settings',
       [this.KEYS.expenses]: 'expenses', [this.KEYS.vehicles]: 'vehicles', [this.KEYS.drivers]: 'drivers',
       [this.KEYS.documents]: 'documents', [this.KEYS.alerts]: 'alerts',
     }[key] || null;
@@ -955,7 +946,7 @@ newId() {
   _cacheKeyToLS(ck) {
     return {
       assets: this.KEYS.assets, preventive: this.KEYS.preventive, corrective: this.KEYS.corrective,
-      users: this.KEYS.users, audit: this.KEYS.audit, expenses: this.KEYS.expenses,
+      audit: this.KEYS.audit, expenses: this.KEYS.expenses,
       vehicles: this.KEYS.vehicles, drivers: this.KEYS.drivers, documents: this.KEYS.documents,
       alerts: this.KEYS.alerts,
     }[ck] || null;
