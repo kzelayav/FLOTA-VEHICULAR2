@@ -197,7 +197,6 @@ declare t text;
 begin
   foreach t in array array['activos','vehiculos','conductores','mantenimientos','alertas','documentos','auditoria','gastos','configuracion'] loop
     execute format('drop policy if exists "allow_all_%s" on public.%I;', t, t);
-    execute format('create policy "allow_all_%s" on public.%I for all using (true) with check (true);', t, t);
   end loop;
 end $$;
 
