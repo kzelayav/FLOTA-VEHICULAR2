@@ -37,7 +37,6 @@ const DB = {
     assets:     'activos',
     preventive: 'mantenimientos',
     corrective: 'mantenimientos',
-    users:      'usuarios',
     audit:      'auditoria',
     expenses:   'gastos',
     vehicles:   'vehiculos',
@@ -318,62 +317,6 @@ newId() {
   },
 
   /* ====================================================
-     USERS — Carga administrativa bajo demanda (F2F.10-C)
-     ==================================================== */
-  _usersLoadPromise: null,
-
-  clearUsersCache() {
-    this._cache.users = [];
-    this._usersLoadPromise = null;
-  },
-
-  async loadUsersForAdmin() {
-    if (!Auth.isAdmin()) {
-      this.clearUsersCache();
-      throw new Error('Solo administradores pueden cargar usuarios');
-    }
-    if (this.mode !== 'supabase' || !this.supabase) {
-      this.clearUsersCache();
-      throw new Error('Cliente Supabase no disponible');
-    }
-
-    // Evitar consultas duplicadas simultáneas
-    if (this._usersLoadPromise) {
-      return this._usersLoadPromise;
-    }
-
-    this._usersLoadPromise = (async () => {
-      try {
-        // Seleccionar únicamente columnas seguras (sin password)
-        const { data, error } = await this.supabase
-          .from('usuarios')
-          .select('id,name,email,role,active,avatar,created_at,updated_at')
-          .order('created_at', { ascending: true });
-        if (error) throw error;
-
-        this._cache.users = (data || []).map(r => ({
-          id: r.id,
-          name: r.name,
-          email: r.email,
-          role: r.role,
-          active: r.active,
-          avatar: r.avatar || '',
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-        }));
-        return this._cache.users;
-      } catch (err) {
-        this.clearUsersCache();
-        throw err;
-      } finally {
-        this._usersLoadPromise = null;
-      }
-    })();
-
-    return this._usersLoadPromise;
-  },
-
-  /* ====================================================
      SEED DATA
      ==================================================== */
   async seed() {
@@ -637,26 +580,6 @@ newId() {
   },
 
   /* ====================================================
-     Users CRUD
-     ==================================================== */
-  getUsers()         { return this._cache.users; },
-  saveUsers(arr)     { this._cache.users = arr || []; this._syncReplace('users'); },
-  addUser(obj) {
-    obj.id = obj.id || this.newId();
-    obj.createdAt = obj.createdAt || new Date().toISOString();
-    this._cache.users.push(obj);
-    this._syncUpsertRow('usuarios', { id: obj.id, name: obj.name, email: obj.email, password: obj.password, role: obj.role, avatar: obj.avatar, active: obj.active }, 'users');
-    return obj;
-  },
-  updateUser(id, d) {
-    const i = this._cache.users.findIndex(x => x.id === id);
-    if (i < 0) return;
-    this._cache.users[i] = { ...this._cache.users[i], ...d };
-    this._syncUpsertRow('usuarios', { id: this._cache.users[i].id, name: this._cache.users[i].name, email: this._cache.users[i].email, password: this._cache.users[i].password, role: this._cache.users[i].role, avatar: this._cache.users[i].avatar, active: this._cache.users[i].active }, 'users');
-  },
-  deleteUser(id)     { this._cache.users = this._cache.users.filter(x => x.id !== id); this._syncDeleteRow('usuarios', id, 'users'); },
-
-  /* ====================================================
      Audit log
      ==================================================== */
   getAudit() { return this._cache.audit; },
@@ -867,7 +790,7 @@ newId() {
      Reset / restablecer datos de ejemplo
      ==================================================== */
   async resetData() {
-    const tables = ['activos','mantenimientos','usuarios','auditoria','configuracion','gastos','vehiculos','conductores','alertas','documentos'];
+    const tables = ['activos','mantenimientos','auditoria','configuracion','gastos','vehiculos','conductores','alertas','documentos'];
     if (this.mode === 'supabase' && this.supabase) {
       for (const t of tables) {
         try { await this.supabase.from(t).delete().neq('id', '__none__'); }
@@ -966,7 +889,7 @@ newId() {
      ==================================================== */
   _resetCache() {
     this._cache = {
-      assets: [], preventive: [], corrective: [], users: [], audit: [],
+      assets: [], preventive: [], corrective: [], audit: [],
       expenses: [], vehicles: [], drivers: [], alerts: [], documents: [],
       settings: { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 },
     };
@@ -1079,7 +1002,6 @@ _persistDeleteAsset(id) {
       case 'assets':     return this._toAssetRow(obj);
       case 'preventive': return { ...this._toPreventiveRow(obj), tipo: 'preventivo' };
       case 'corrective': return { ...this._toCorrectiveRow(obj), tipo: 'correctivo' };
-      case 'users':      return { id: obj.id, name: obj.name, email: obj.email, password: obj.password, role: obj.role, avatar: obj.avatar, active: obj.active, created_at: obj.createdAt, updated_at: obj.updatedAt };
       case 'audit':      return { id: obj.id, user_name: obj.user || '', action: obj.action || '', detail: obj.detail || '', ts: obj.ts };
       case 'expenses':   return this._toExpenseRow(obj);
       case 'alerts':     return this._toAlertRow(obj);
@@ -1092,7 +1014,6 @@ _persistDeleteAsset(id) {
       case 'assets':     return this._fromAssetRow(row);
       case 'preventive': return this._fromPreventiveRow(row);
       case 'corrective': return this._fromCorrectiveRow(row);
-      case 'users':      return { ...row, createdAt: row.created_at, updatedAt: row.updated_at };
       case 'audit':      return { ...row, user: row.user_name };
       case 'expenses':   return this._fromExpenseRow(row);
       case 'alerts':     return this._fromAlertRow(row);

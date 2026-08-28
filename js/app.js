@@ -13,7 +13,6 @@ const App = {
     corrective: { render: () => CorrectiveModule.render() },
     alerts:     { render: () => AlertsModule.render() },
     reports:    { render: () => ReportsModule.render(),    init: () => ReportsModule.init() },
-    users:      { render: () => UsersModule.render() },
     audit:      { render: () => AuditModule.render() },
     settings:   { render: () => SettingsModule.render() },
   },
@@ -23,7 +22,7 @@ const App = {
     if (!Auth.getSession()) { this.renderLogin(); return; }
     const session = Auth.getSession();
     const isAdmin = session?.role === 'admin';
-    const adminOnly = ['users','audit','settings'];
+    const adminOnly = ['audit','settings'];
 
     // Admin-only modules
     if (adminOnly.includes(moduleId) && !isAdmin) {
@@ -70,7 +69,7 @@ const App = {
       dashboard:'Indicadores en tiempo real', assets:'Registro de vehículos y equipos',
       preventive:'Mantenimientos preventivos', corrective:'Fallas y reparaciones',
       alerts:'Notificaciones del sistema', reports:'Reportes y exportaciones',
-      users:'Gestión de usuarios', audit:'Bitácora de auditoría', settings:'Configuración del sistema',
+      audit:'Bitácora de auditoría', settings:'Configuración del sistema',
     };
     return subs[id]||'';
   },
@@ -126,11 +125,11 @@ const App = {
       { label:'Principal', items:['dashboard'] },
       { label:'Gestión', items:['assets','preventive','corrective'] },
       { label:'Análisis', items:['alerts','reports'] },
-      { label:'Sistema', items:['users','audit','settings'] },
+      { label:'Sistema', items:['audit','settings'] },
     ];
 
     sections.forEach(sec => {
-      const visibleItems = NAV_ITEMS.filter(n => sec.items.includes(n.id) && (hasAll || perms.includes(n.module) || ['users','audit','settings'].includes(n.id) && hasAll));
+      const visibleItems = NAV_ITEMS.filter(n => sec.items.includes(n.id) && (hasAll || perms.includes(n.module)));
       if (!visibleItems.length) return;
       html += `<div class="nav-section-label">${sec.label}</div>`;
       visibleItems.forEach(item => {
