@@ -121,19 +121,6 @@ create table if not exists public.alertas (
   created_at  timestamptz default now()
 );
 
--- ============================ USUARIOS =====================================
-create table if not exists public.usuarios (
-  id         text primary key,
-  name       text,
-  email      text,
-  password   text,
-  role       text,
-  avatar     text default '',
-  active     boolean default true,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
 -- ============================ DOCUMENTOS ===================================
 create table if not exists public.documentos (
   id            text primary key,
@@ -190,7 +177,6 @@ create index if not exists idx_mantenimientos_status on public.mantenimientos (s
 create index if not exists idx_gastos_date        on public.gastos (date);
 create index if not exists idx_auditoria_ts       on public.auditoria (ts);
 create index if not exists idx_alertas_leida      on public.alertas (leida);
-create index if not exists idx_usuarios_email     on public.usuarios (email);
 
 -- ============================ RLS (DEMO) ===================================
 -- Políticas permisivas para que la app funcione con la anon key.
@@ -201,7 +187,6 @@ alter table public.vehiculos     enable row level security;
 alter table public.conductores   enable row level security;
 alter table public.mantenimientos enable row level security;
 alter table public.alertas       enable row level security;
-alter table public.usuarios      enable row level security;
 alter table public.documentos    enable row level security;
 alter table public.auditoria     enable row level security;
 alter table public.gastos        enable row level security;
@@ -210,7 +195,7 @@ alter table public.configuracion enable row level security;
 do $$
 declare t text;
 begin
-  foreach t in array array['activos','vehiculos','conductores','mantenimientos','alertas','usuarios','documentos','auditoria','gastos','configuracion'] loop
+  foreach t in array array['activos','vehiculos','conductores','mantenimientos','alertas','documentos','auditoria','gastos','configuracion'] loop
     execute format('drop policy if exists "allow_all_%s" on public.%I;', t, t);
     execute format('create policy "allow_all_%s" on public.%I for all using (true) with check (true);', t, t);
   end loop;
@@ -791,80 +776,6 @@ WITH CHECK (
 );
 
 CREATE POLICY activos_delete ON public.activos
-FOR DELETE TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid()
-      AND active = true
-      AND role = 'admin'
-  )
-);
-
-COMMIT;
-
--- ==========================================
--- USUARIOS LEGACY RLS CONTAINMENT (F2F.10-A)
--- ==========================================
--- Contención temporal: solo admin activo puede acceder a public.usuarios.
--- La tabla y la columna password se mantienen temporalmente.
--- UsersModule permanece disponible para admin mientras se prepara su migración.
-BEGIN;
-
-DROP POLICY IF EXISTS usuarios_select ON public.usuarios;
-DROP POLICY IF EXISTS usuarios_insert ON public.usuarios;
-DROP POLICY IF EXISTS usuarios_update ON public.usuarios;
-DROP POLICY IF EXISTS usuarios_delete ON public.usuarios;
-DROP POLICY IF EXISTS allow_all_usuarios ON public.usuarios;
-
-REVOKE ALL ON public.usuarios FROM anon;
-REVOKE ALL ON public.usuarios FROM authenticated;
-REVOKE ALL ON public.usuarios FROM PUBLIC;
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.usuarios TO authenticated;
-
-CREATE POLICY usuarios_select ON public.usuarios
-FOR SELECT TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid()
-      AND active = true
-      AND role = 'admin'
-  )
-);
-
-CREATE POLICY usuarios_insert ON public.usuarios
-FOR INSERT TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid()
-      AND active = true
-      AND role = 'admin'
-  )
-);
-
-CREATE POLICY usuarios_update ON public.usuarios
-FOR UPDATE TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid()
-      AND active = true
-      AND role = 'admin'
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = auth.uid()
-      AND active = true
-      AND role = 'admin'
-  )
-);
-
-CREATE POLICY usuarios_delete ON public.usuarios
 FOR DELETE TO authenticated
 USING (
   EXISTS (
