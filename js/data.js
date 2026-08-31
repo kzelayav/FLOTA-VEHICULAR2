@@ -585,9 +585,11 @@ newId() {
      Settings
      ==================================================== */
   getSettings() { return this._cache.settings; },
-  saveSettings(s) {
-    this._cache.settings = { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7, ...s };
-    this._syncUpsertSettings(this._cache.settings);
+  async saveSettings(s) {
+    const nextSettings = { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7, ...s };
+    await this._syncUpsertSettings(nextSettings);
+    this._cache.settings = nextSettings;
+    return nextSettings;
   },
 
   /* ====================================================
@@ -821,9 +823,9 @@ newId() {
   _syncUpsertSettings(s) {
     if (this.mode !== 'supabase' || !this.supabase) {
       try { localStorage.setItem(this.KEYS.settings, JSON.stringify(s)); } catch {}
-      return;
+      return Promise.resolve();
     }
-    this._async('upsert configuracion', () => this._upsertSettingsRow(s));
+    return this._async('upsert configuracion', () => this._upsertSettingsRow(s));
   },
 
   _syncReplace(ck) {

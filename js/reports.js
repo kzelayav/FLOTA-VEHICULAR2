@@ -336,6 +336,8 @@ const ReportsModule = {
    ==================================================== */
 
 const SettingsModule = {
+  _saving: false,
+
   render() {
     if (!Auth.isAdmin()) return `<div class="empty-state"><div class="empty-icon">🔒</div><h3>Acceso Denegado</h3></div>`;
     const s = DB.getSettings();
@@ -352,7 +354,7 @@ const SettingsModule = {
         <input class="form-control" type="number" id="sett-days" value="${s.alertDaysAhead||7}" min="1" max="30">
       </div>
       <div class="form-actions">
-        <button class="btn btn-primary" onclick="SettingsModule.save()">💾 Guardar Configuración</button>
+        <button class="btn btn-primary" id="settings-save-btn" onclick="SettingsModule.save()">💾 Guardar Configuración</button>
       </div>
     </div>
     <div class="card mt-16" style="max-width:500px">
@@ -361,12 +363,51 @@ const SettingsModule = {
     </div>`;
   },
 
-  save() {
-    const cur  = document.getElementById('sett-cur')?.value||'Q';
-    const days = parseInt(document.getElementById('sett-days')?.value||7);
-    DB.saveSettings({ currency:cur, alertDaysAhead:days });
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'SETTINGS', detail:'Configuración guardada' });
-    showToast('Configuración guardada','success');
+  async save() {
+    if (this._saving) return;
+    if (!Auth.isAdmin()) {
+      showToast('Solo administradores pueden guardar configuración','error');
+      return;
+    }
+
+    const curEl = document.getElementById('sett-cur');
+    const daysEl = document.getElementById('sett-days');
+    const cur = curEl?.value?.trim() || 'Q';
+    const days = parseInt(daysEl?.value, 10);
+
+    if (!cur) {
+      showToast('Moneda requerida','error');
+      return;
+    }
+    if (!Number.isFinite(days) || days < 1) {
+      showToast('Días de anticipación inválido','error');
+      return;
+    }
+
+    const btn = document.getElementById('settings-save-btn');
+    const prevDisabled = btn?.disabled;
+    const prevHtml = btn?.innerHTML;
+
+    this._saving = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = 'Guardando...';
+    }
+
+    try {
+      await DB.saveSettings({ currency: cur, alertDaysAhead: days });
+      DB.addAudit({ user: Auth.getSession()?.name || '', action: 'SETTINGS', detail: 'Configuración guardada' });
+      showToast('Configuración guardada','success');
+    } catch (err) {
+      console.error('[Settings] Error guardando:', err);
+      showToast('Error guardando configuración','error');
+    } finally {
+      this._saving = false;
+      if (btn) {
+        btn.disabled = prevDisabled;
+        btn.innerHTML = prevHtml;
+      }
+    }
   },
 
   resetData() {
