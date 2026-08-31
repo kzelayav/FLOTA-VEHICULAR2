@@ -27,7 +27,7 @@ Aplicación interna de gestión de flota vehicular con arquitectura **Supabase-F
 
 ### Frontend (JavaScript Vanilla ES6+)
 - **Arquitectura modular**: Módulos por funcionalidad (`js/*.js`)
-- **Capa de datos**: `DB` (caché en memoria + Supabase + fallback LocalStorage)
+- **Capa de datos**: `DB` (caché en memoria y Supabase, sin fallback a LocalStorage)
 - **Autenticación**: `Auth` (solo Supabase Auth, sin legacy)
 - **Módulos**: Dashboard, Activos, Preventivos, Correctivos, Gastos, Documentos, Alertas, Conductores, Vehículos, Reportes, Auditoría, Configuración
 
@@ -217,7 +217,7 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 - **Carga inicial**: `DB.bootstrap()` → `_loadAllFromSupabase()` → `_loadOperationalData()`
 - **Escrituras**: Actualizan caché **inmediatamente** + sincronizan async con Supabase
 - **Lecturas**: Desde caché en memoria (instantáneo)
-- **Fallback**: LocalStorage si Supabase no configurado/fallido
+- **Disponibilidad**: si Supabase no está configurado o no está disponible, la aplicación falla de forma segura y no activa un almacenamiento alternativo.
 
 ### Flujo de Escritura (DELETE ejemplo)
 ```
