@@ -504,16 +504,10 @@ newId() {
     return this._enqueueRecord('preventive', id, async () => {
       const idx = this._cache.preventive.findIndex(x => x.id === id);
       if (idx < 0) throw new Error('deletePreventive: mantenimiento no encontrado: ' + id);
-      const deleted = { ...this._cache.preventive[idx] };
-      const originalIndex = idx;
-      this._cache.preventive.splice(idx, 1);
       try {
         await this._persistDelete('preventive', 'mantenimientos', id);
+        this._cache.preventive.splice(idx, 1);
       } catch (err) {
-        if (!this._cache.preventive.some(r => r.id === id)) {
-          const safeIdx = Math.min(originalIndex, this._cache.preventive.length);
-          this._cache.preventive.splice(safeIdx, 0, deleted);
-        }
         throw err;
       }
     });
@@ -564,16 +558,10 @@ newId() {
     return this._enqueueRecord('corrective', id, async () => {
       const idx = this._cache.corrective.findIndex(x => x.id === id);
       if (idx < 0) throw new Error('deleteCorrective: correctivo no encontrado: ' + id);
-      const deleted = { ...this._cache.corrective[idx] };
-      const originalIndex = idx;
-      this._cache.corrective.splice(idx, 1);
       try {
         await this._persistDelete('corrective', 'mantenimientos', id);
+        this._cache.corrective.splice(idx, 1);
       } catch (err) {
-        if (!this._cache.corrective.some(r => r.id === id)) {
-          const safeIdx = Math.min(originalIndex, this._cache.corrective.length);
-          this._cache.corrective.splice(safeIdx, 0, deleted);
-        }
         throw err;
       }
     });
@@ -767,16 +755,10 @@ newId() {
     return this._enqueueRecord('alerts', id, async () => {
       const idx = this._cache.alerts.findIndex(x => x.id === id);
       if (idx < 0) throw new Error('deleteAlerta: alerta no encontrada: ' + id);
-      const deleted = { ...this._cache.alerts[idx] };
-      const originalIndex = idx;
-      this._cache.alerts.splice(idx, 1);
       try {
         await this._persistDelete('alertas', 'alertas', id);
+        this._cache.alerts.splice(idx, 1);
       } catch (err) {
-        if (!this._cache.alerts.some(r => r.id === id)) {
-          const safeIdx = Math.min(originalIndex, this._cache.alerts.length);
-          this._cache.alerts.splice(safeIdx, 0, deleted);
-        }
         throw err;
       }
     });

@@ -185,6 +185,21 @@ const Auth = {
     return s && s.role === 'admin';
   },
 
+  /* ── Delete permission by resource ── */
+  canDelete(resource) {
+    const s = this.getSession();
+    if (!s) return false;
+    const role = s.role;
+    switch (resource) {
+      case 'alerts':
+        return ['admin','supervisor','tecnico'].includes(role);
+      case 'maintenance':
+        return ['admin','supervisor'].includes(role);
+      default:
+        return false;
+    }
+  },
+
   /* ── Render nav based on permissions ── */
   getVisibleNavItems() {
     const s = this.getSession();

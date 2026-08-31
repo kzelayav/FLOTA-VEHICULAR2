@@ -266,7 +266,7 @@ const AlertsModule = {
           <div class="table-actions">
             <button class="btn btn-outline btn-icon btn-sm" title="Editar" onclick="AlertsModule.openModal('${a.id}')">✏️</button>
             ${a.estado !== 'Completada' ? `<button class="btn btn-outline btn-icon btn-sm" title="Completar" onclick="AlertsModule.toggleEstado('${a.id}')">✅</button>` : ''}
-            <button class="btn btn-outline btn-icon btn-sm" title="Eliminar" onclick="AlertsModule.remove('${a.id}')">🗑️</button>
+            ${Auth.canDelete('alerts') && a.estado !== 'Completada' ? `<button class="btn btn-outline btn-icon btn-sm" title="Eliminar" onclick="AlertsModule.remove('${a.id}')">🗑️</button>` : ''}
           </div>
         </td>
       </tr>`;
@@ -479,6 +479,10 @@ const AlertsModule = {
   },
 
     async remove(id) {
+    if (!Auth.canDelete('alerts')) {
+      showToast('No tiene permiso para eliminar alertas', 'error');
+      return;
+    }
     const a = DB.getAlertas().find(x => x.id === id);
     if (!a) return;
     if (!confirm('¿Eliminar esta alerta?')) return;
