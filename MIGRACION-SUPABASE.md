@@ -1,188 +1,214 @@
 # Migración a Supabase — Flota Vehicular ECOM
 
-Documento que explica todos los cambios realizados para migrar el almacenamiento
-de datos de **LocalStorage** hacia **Supabase**, sin romper ninguna funcionalidad
-existente.
+**Estado**: COMPLETADO  
+**Baseline documentación**: `338a0b4` — fix: correct maintenance delete button syntax  
+**Fecha**: 2026-08-31
 
 ---
 
-## 1. Resumen
+## 1. Resumen Ejecutivo
 
-La aplicación usaba `localStorage` como única capa de persistencia (objeto `DB` en
-`js/data.js`). Se migró toda la persistencia a **Supabase (PostgreSQL)** manteniendo
-la misma API del `DB` (por ejemplo `DB.getAssets()`, `DB.addAsset()`), de modo que
-**ninguno de los módulos tuvo que reescribirse** para seguir funcionando.
+La aplicación migó de **LocalStorage** a **Supabase (PostgreSQL)** manteniendo la misma API pública de `DB` (`DB.getAssets()`, `DB.addAsset()`, etc.). Ningún módulo funcional requirió reescritura.
 
 | Antes | Después |
 |---|---|
-| `localStorage.getItem/setItem` en `data.js` y otros | CRUD contra tablas de Supabase (`activos`, `mantenimientos`, `usuarios`, etc.) |
-| Lecturas síncronas del navegador | Caché en memoria alimentada por Supabase + escrituras asíncronas |
+| `localStorage.getItem/setItem` | CRUD contra tablas Supabase (`activos`, `mantenimientos`, `alertas`, etc.) |
+| Lecturas síncronas del navegador | Caché en memoria + Supabase + escrituras async |
 | Datos por navegador/equipo | Datos compartidos en la nube |
-| Sin migración | Migración automática LocalStorage → Supabase en el primer ingreso |
-| Sin manejo de errores | Manejo de errores y respaldo a LocalStorage si Supabase falla |
+| Sin migración | Migración automática LocalStorage → Supabase (primer ingreso) |
+| Sin manejo de errores | Manejo de errores + fallback LocalStorage |
 
 ---
 
-## 2. Archivos creados
+## 2. Archivos Creados
 
 | Archivo | Descripción |
 |---|---|
-| `supabase/schema.sql` | Esquema completo de Supabase (10 tablas, índices, RLS y permisos). Ejecutar en el SQL Editor de Supabase. |
-| `js/supabase-config.js` | Configuración del cliente: `url` y `anonKey`. Ahí se colocan los datos del proyecto. |
-
-## 3. Archivos modificados
-
-| Archivo | Cambio |
-|---|---|
-| `index.html` | Se agregó el CDN de `@supabase/supabase-js@2`, el script `supabase-config.js` y un overlay de carga mientras se descargan los datos. |
-| `js/data.js` | **Reescrito por completo**: capa de datos con caché + Supabase + migración + respaldo LocalStorage. La API pública (`DB.getAssets`, `DB.addAsset`, `DB.calcKPIs`, etc.) se conservó idéntica. |
-| `js/app.js` | `App.init()` ahora es asíncrono: espera `DB.bootstrap()` antes de mostrar login/app. `updateAlertBadge()` lee las alertas registradas (módulo independiente) y muestra el contador en la campana. |
-| `js/reports.js` | `SettingsModule.resetData()` ahora usa `DB.resetData()` (limpia Supabase + siembra datos de ejemplo) en lugar de borrar claves de LocalStorage. |
-| `js/assets.js` | La importación masiva de Excel ahora usa `DB.bulkAddAssets()` (un solo batch upsert a Supabase en lugar de un insert por fila). |
+| `supabase/schema.sql` | Esquema completo (10 tablas, índices, RLS, permisos, triggers). Ejecutar en SQL Editor Supabase. |
+| `js/supabase-config.js` | Configuración cliente: `url`, `anonKey`, `authMode: 'supabase'`. |
 
 ---
 
-## 4. Estructura SQL creada (`supabase/schema.sql`)
+## 3. Archivos Modificados
 
-Todas las tablas usan `id text primary key` porque la app genera los IDs en el
-cliente (`DB.newId()`), lo que preserva las referencias entre registros y facilita
-la migración de los datos existentes.
+| Archivo | Cambio Principal |
+|---|---|
+| `index.html` | CDN Supabase JS, `supabase-config.js`, overlay carga |
+| `js/data.js` | Reescrito: caché + Supabase + migración + fallback LocalStorage. API pública idéntica. |
+| `js/app.js` | `App.init()` async; `updateAlertBadge()` usa AlertEngine |
+| `js/reports.js` | `SettingsModule.resetData()` → `DB.resetData()` |
+| `js/assets.js` | Importación Excel → `DB.bulkAddAssets()` (batch upsert) |
+| `js/auth.js` | Auth solo Supabase; `Auth.canDelete()` para permisos DELETE |
+| `js/alerts.js` | UI/handler DELETE condicionados a `Auth.canDelete('alerts')` |
+| `js/reports.js` | UI/handlers DELETE condicionados a `Auth.canDelete('maintenance')` |
+| `js/data.js` | Caché post-persistencia; `deleteAlerta/Preventive/Corrective` sin rollback manual |
 
-### Tablas solicitadas y su uso
+---
 
-| Tabla | Entidad | Mapeo con la app |
+## 4. Estructura SQL (`supabase/schema.sql`)
+
+### Tablas Operativas (10)
+
+| Tabla | Entidad | Descripción |
 |---|---|---|
-| `activos` | Activos | Módulo **Registro de Activos** (vehículos y equipos). |
-| `vehiculos` | Vehículos | Subconjunto vehicular de los activos (Camión, Camioneta, Carro, Motocicleta, etc.). |
-| `conductores` | Conductores | Registro de conductores (licencia, teléfono, estado). |
-| `mantenimientos` | Mantenimientos | Preventivos y correctivos en **una sola tabla** discriminados por la columna `tipo` (`preventivo` / `correctivo`). |
-| `alertas` | Alertas | Snapshot de las alertas generadas por el sistema (`AlertEngine`). |
-| `usuarios` | Usuarios | Cuentas con roles (admin, supervisor, tecnico, consulta). |
-| `documentos` | Documentos | Documentos asociados a activos (tarjeta de circulación, pólizas, etc.). |
+| `activos` | Activos | Vehículos, equipos, maquinaria |
+| `vehiculos` | Vehículos | Subconjunto vehicular (Camión, Camioneta, Carro, Moto, etc.) |
+| `conductores` | Conductores | Licencia, teléfono, estado |
+| `mantenimientos` | Mantenimientos | Preventivos (`tipo='preventivo'`) y Correctivos (`tipo='correctivo'`) |
+| `alertas` | Alertas | Snapshots de alertas km/horas |
+| `documentos` | Documentos | Archivos asociados a activos |
+| `auditoria` | Auditoría | Log inmutable (LOGIN, LOGOUT, CRUD) |
+| `gastos` | Gastos | Costos operativos por activo/categoría |
+| `configuracion` | Configuración | Single-row `id='default'` (moneda, días alerta) |
+| `profiles` | Perfiles | Vinculado a `auth.users` (FK + trigger) |
 
-### Tablas de soporte
+### Tabla Retirada
+| Tabla | Estado | Motivo |
+|---|---|---|
+| `public.usuarios` | **ELIMINADA (F2G)** | Tabla legacy con passwords en texto plano; reemplaza por Supabase Auth + `public.profiles` |
+| Columna `password` | **ELIMINADA** | Credenciales en texto plano; autenticación delegada a Supabase Auth |
 
-| Tabla | Propósito |
+### Convenciones
+- **DB**: snake_case (`current_km`, `activo_id`, `created_at`)
+- **App**: camelCase (`currentKm`, `assetId`, `createdAt`)
+- Mapeo en `js/data.js` (`_toAssetRow`, `_fromAssetRow`, etc.)
+
+---
+
+## 6. Migración Automática (Primer Ingreso)
+
+`DB.bootstrap()` ejecuta al iniciar:
+
+1. Crea cliente Supabase (`js/supabase-config.js`)
+2. Carga todas las tablas a caché (`_loadAllFromSupabase`)
+3. Detecta datos legacy en LocalStorage (`fleet_assets`, `fleet_preventive`, etc.)
+4. Si existe → **upsert masivo** a Supabase (preserva IDs y relaciones)
+5. Si éxito → elimina claves LocalStorage + registra auditoría `MIGRATE`
+6. Seed solo si BD vacía (solo fila `configuracion` default)
+8. Recarga caché final
+
+> Ocurre **una sola vez** (primer ingreso tras configurar Supabase).
+
+---
+
+## 7. Fases de Migración (Historial)
+
+### F2F.1–F2F.9: RLS Restrictiva por Tabla
+| Fase | Tabla | Commit |
+|---|---|---|
+| F2F.1 | `alertas` | `ce39e2f` |
+| F2F.2 | `conductores` | `062f804` |
+| F2F.3 | `vehiculos` | `d324d30` |
+| F2F.4 | `documentos` | `0d31763` |
+| F2F.5 | `configuracion` | `a6ed62d` |
+| F2F.6 | `gastos` | `b124574` |
+| F2F.7 | `auditoria` | `07ccf52` |
+| F2F.8 | `mantenimientos` | `b124574` |
+| F2F.9 | `activos` | `0b3864a` |
+
+**Resultado**: RLS restrictiva en 9 tablas operativas + `profiles` (F2B).
+
+### F2F.10-A: RLS `public.usuarios` Admin-Only
+- Commit `1a40e3f`: Policies restrictivas (solo admin activo)
+- Elimina `allow_all_usuarios`
+
+### F2F.10-B: Elimina Auth Legacy + Credenciales Demo
+- Commit `2d005e0`: Elimina `loginLegacy`, `handleDemoLogin`, `demo-user-btn`, `fleet_session`, `fleet_users`, seed passwords
+- `Auth.getMode()` → solo `'supabase'`; fallback seguro
+
+### F2F.10-C: Desacopla `public.usuarios` de Carga Operativa
+- Commit `0ce4db2`: Retira `usuarios` de `_loadAllFromSupabase` y `loadOperationalData`
+- Caché `users` inicia vacía; carga bajo demanda solo admin
+
+### F2F.10-D: Elimina UsersModule + CRUD Legacy Frontend
+- Commit `c8d05ed`: Elimina `UsersModule`, navegación `users`, `MODULES.users`
+- Elimina `DB.getUsers`, `addUser`, `updateUser`, `deleteUser`, mappers, `TABLES.users`, cache `users`
+- `Auth.canDelete()` centraliza permisos DELETE
+
+### F2G: Elimina `public.usuarios` (BD)
+- Commit `903fbad`: Migración `DROP TABLE public.usuarios` (idempotente, sin CASCADE)
+- Elimina tabla + columna `password` + policies + grants
+- Respaldo seguro `pg_dump` verificado previo
+
+### F2H: Limpieza Final
+| Sub-fase | Descripción |
 |---|---|
-| `auditoria` | Bitácora de auditoría (módulo Auditoría). |
-| `gastos` | Gastos operativos (referenciados por `expenses.js` y reportes). |
-| `configuracion` | Configuración del sistema (moneda, días de anticipación). Una sola fila `id='default'`. |
-| `profiles` | Perfiles vinculados a Supabase Auth (F2B). Solo lectura propia vía RLS (`auth.uid() = id`). Administración manual. |
-
-### Convención de columnas
-
-- Supabase usa **snake_case** (`current_km`, `inspection_date`, `activo_id`, ...).
-- La app usa **camelCase** (`currentKm`, `inspectionDate`, `assetId`, ...).
-- El mapeo se hace en `js/data.js` (`_toAssetRow`, `_fromAssetRow`, `_toPreventiveRow`, etc.).
+| F2H-A | Limpieza respaldos locales, scripts diagnósticos, `.gitignore` |
+| F2H-A2 | Elimina respaldos sensibles (`.backup_f2f10b_code`, etc.); mueve no sensibles |
+| F2H-SCHEMA | Elimina `CREATE POLICY allow_all_*` del loop DO $$ en `schema.sql` |
+| F2H-UI | `Auth.canDelete()`; UI/handlers alineados RLS; caché post-persistencia |
+| F2H-B | Documentación final (README, ARCHITECTURE, OPERATIONS, MIGRACION) |
+| F2H-C | Regresión final pendiente |
+| F2H-D | Cierre formal + eliminación respaldo sensible F2G (30 días) |
 
 ---
 
-## 5. Sustitución de operaciones LocalStorage → Supabase
+## 8. Seguridad Final
 
-Todas las operaciones quedaron centralizadas en `js/data.js`:
-
-| Operación anterior | Operación nueva (Supabase) |
+| Medida | Estado |
 |---|---|
-| `localStorage.getItem(key)` → arreglo | `_selectAll(table)` / `_selectWhere(table, col, val)` al iniciar; lecturas desde caché en memoria |
-| `localStorage.setItem(key, json)` | `upsert({ onConflict: 'id' })`, `insert()`, o `delete().eq('id', id)` |
-| `localStorage.removeItem(key)` | `delete().eq('id', id)` / `delete().eq('tipo', ...)` / `delete().neq('id', '__none__')` para reemplazos |
+| Autenticación solo Supabase Auth | ✅ |
+| `public.usuarios` + `password` eliminados | ✅ (F2G) |
+| RLS restrictiva en 10 tablas | ✅ |
+| `Auth.canDelete()` centralizada | ✅ |
+| Caché post-persistencia | ✅ |
+| Auditoría solo tras éxito | ✅ |
+| Service Role fuera de frontend | ✅ |
+| Credenciales demo eliminadas | ✅ |
+| Login legacy eliminado | ✅ |
 
-Los **métodos públicos** del `DB` no cambian de nombre ni de firma, por lo que los
-módulos (`assets.js`, `preventive.js`, `corrective.js`, `alerts.js`, `audit.js`,
-`dashboard.js`, `reports.js`, `auth.js`) siguen funcionando sin cambios:
+---
 
-- Lecturas: `getAssets`, `getPreventive`, `getCorrective`, `getUsers`, `getAudit`, `getSettings`, `getAsset`, `calcKPIs`.
-- Escrituras: `addAsset`, `updateAsset`, `deleteAsset`, `saveAssets`, `addPreventive`, `updatePreventive`, `deletePreventive`, `savePreventive`, y equivalentes para correctivo, usuarios, auditoría, configuración y gastos.
+## 9. Commits Clave (Baseline Documentación)
 
-### Mapa clave LocalStorage → tabla
+| Commit | Mensaje | Fase |
+|---|---|---|
+| `fa13b41` | fix: prevent duplicate assets during Excel import | Pre-F2F |
+| `1a40e3f` | feat(db): restrict legacy users to admin access | F2F.10-A |
+| `2d005e0` | security: remove demo credentials and legacy auth | F2F.10-B |
+| `0ce4db2` | security: decouple legacy users from operational load | F2F.10-C |
+| `c8d05ed` | refactor: remove legacy user management frontend | F2F.10-D |
+| `903fbad` | refactor(db): retire legacy usuarios table | F2G |
+| `0b3864a` | security(db): remove permissive demo policies from schema | F2H-SCHEMA |
+| `338a0b4` | fix: correct maintenance delete button syntax | F2H-UI (fix) |
+| **`d784946`** | **chore: ignore local backups and diagnostic artifacts** | **F2H-A** |
+| **`102eca4`** | **fix(db): make legacy usuarios drop migration idempotent** | **F2G** |
+| **`89fa5ed`** | **fix(db): remove permissive demo policies from schema** | **F2H-SCHEMA** |
+| **`c8d05ed`** | **refactor: remove legacy user management frontend** | **F2F.10-D** |
+| **`0ce4db2`** | **security: decouple legacy users from operational load** | **F2F.10-C** |
+| **`2d005e0`** | **security: remove demo credentials and legacy auth** | **F2F.10-B** |
+| **`1a40e3f`** | **feat(db): restrict legacy users to admin access** | **F2F.10-A** |
 
-| Clave antigua | Tabla Supabase |
+---
+
+## 10. Estado Final
+
+| Componente | Estado |
 |---|---|
-| `fleet_assets` | `activos` |
-| `fleet_preventive` | `mantenimientos` (`tipo='preventivo'`) |
-| `fleet_corrective` | `mantenimientos` (`tipo='correctivo'`) |
-| `fleet_users` | `usuarios` |
-| `fleet_audit` | `auditoria` |
-| `fleet_settings` | `configuracion` |
-| `fleet_expenses` | `gastos` |
+| Migración LocalStorage → Supabase | ✅ Completada |
+| RLS Restrictiva (10 tablas) | ✅ |
+| Autenticación Solo Supabase Auth | ✅ |
+| `public.usuarios` Eliminada | ✅ (F2G) |
+| Columna `password` Eliminada | ✅ |
+| Auth Legacy Eliminada | ✅ |
+| Credenciales Demo Eliminadas | ✅ |
+| Permisos DELETE Alineados RLS | ✅ |
+| Caché Post-Persistencia | ✅ |
+| Auditoría Solo Tras Éxito | ✅ |
+| Documentación Final | ✅ (F2H-B) |
 
 ---
 
-## 6. Migración automática (primer ingreso)
+## 10. Puesta en Marcha (Resumen)
 
-`DB.bootstrap()` se ejecuta antes de mostrar la interfaz y hace lo siguiente:
-
-1. Crea el cliente de Supabase con `js/supabase-config.js`.
-2. Carga todas las tablas hacia la caché en memoria.
-3. **Detecta si existe data antigua en LocalStorage** (`fleet_assets`, `fleet_preventive`, etc.).
-4. Si existe, hace **upsert masivo** de esa data hacia Supabase (preservando IDs y relaciones).
-5. Si la migración fue exitosa, **elimina las claves de LocalStorage** y registra un evento `MIGRATE` en la auditoría.
-6. Si la base está vacía (sin migración y sin datos), el seed solo crea la fila de configuración por defecto (moneda `Q`, 7 días de anticipación). **No siembra datos de ejemplo**: los usuarios y activos se cargan desde Supabase.
-7. Vuelve a recargar la caché para reflejar el estado final.
-
-> La migración ocurre **una sola vez** (la primera vez que el usuario abre la app tras
-> configurar Supabase). Después de migrar, LocalStorage queda vacío y los datos viven en la nube.
+1. Crear proyecto Supabase
+2. Ejecutar `supabase/schema.sql` en SQL Editor
+3. Configurar `js/supabase-config.js` (URL + anonKey + `authMode: 'supabase'`)
+4. Abrir `index.html` → migración automática si hay datos legacy
+5. Crear usuarios en Supabase Dashboard → `public.profiles` → asignar roles
+6. Desplegar en Vercel (push a `main` → auto-deploy)
 
 ---
 
-## 7. Dashboards y lectura desde Supabase
-
-Los dashboards y todas las vistas leen siempre desde `DB`, que ahora obtiene los
-datos de Supabase. No se modificó la lógica de `calcKPIs`, gráficas, filtros ni
-alertas: solo cambió el origen de los datos.
-
----
-
-## 8. Manejo de errores y carga asíncrona
-
-- **Overlay de carga**: se muestra `#boot-loading` hasta que `DB.bootstrap()` termina.
-- **Escrituras asíncronas**: `addAsset`, `updateAsset`, `deleteAsset`, etc. actualizan
-  la caché al instante y sincronizan con Supabase en segundo plano (`_async`). Si una
-  escritura falla, se muestra un toast de error y se registra en consola.
-- **Respaldo LocalStorage**: si Supabase no está configurado, no carga el CDN, o la red
-  falla, la app **cae automáticamente al modo LocalStorage** y sigue funcionando como
-  antes (sin pérdida de funcionalidad).
-- **Importación Excel** ahora es en lote (`DB.bulkAddAssets`).
-
----
-
-## 9. Configuración para ponerlo en marcha
-
-1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. Ve al **SQL Editor** de tu proyecto, pega el contenido de `supabase/schema.sql` y ejecútalo.
-3. Ve a **Settings → API** y copia el **Project URL** y la **anon key**.
-4. Edita `js/supabase-config.js`:
-   ```js
-   window.SUPABASE_CONFIG = {
-     url: 'https://TU-PROYECTO.supabase.co',
-     anonKey: 'TU-ANON-KEY',
-   };
-   ```
-5. Abre `index.html`. En la primera carga, los datos de LocalStorage se migrarán
-   automáticamente a Supabase.
-
-Usuarios existentes en Supabase (login rápido en la pantalla de inicio): `admin@flota.com / Samigol` (Administrador), `JakelingSilva@flota.com / 1234` (admin), `JasonAviles@flota.com / 1234` (supervisor), `AngieMendoza@flota.com / 1234` (supervisor).
-
----
-
-## 10. Seguridad
-
-- El script `schema.sql` activa **Row Level Security** con políticas **permisivas**
-  (`using(true) with check(true)`) para que la app funcione con la anon key.
-- **Tabla `profiles` (F2B)**: RLS habilitada con policy `profiles_self_read` que permite `SELECT` únicamente a `authenticated` cuando `auth.uid() = id`. Sin policies de escritura. Administración manual vía Dashboard/SQL Editor.
-- ⚠️ **Para producción** se recomienda:
-  - Adoptar **Supabase Auth** para el login (en lugar del login propio con la tabla `usuarios`).
-  - Reemplazar las políticas permisivas por políticas basadas en `auth.uid()` y roles.
-  - No exponer nunca la `service_role key` en el frontend (la anon key sí puede ir).
-  - Encriptar/almacenar contraseñas con hash (por ejemplo con `bcrypt` en una Edge Function).
-
----
-
-## 11. Notas de compatibilidad
-
-- La **sesión de usuario** se mantiene en `sessionStorage` (no es dato de dominio y
-  no se migra a Supabase). Solo se migraron las tablas de datos.
-- El módulo `expenses.js` no está referenciado en `index.html`, pero su API
-  (`DB.getExpenses`, `DB.addExpense`, etc.) ya existe sobre la tabla `gastos`.
-- Los IDs de los registros se conservan al migrar, por lo que las relaciones
-  (mantenimiento → activo, alerta → activo) se mantienen intactas.
+**Migración COMPLETADA** — Baseline documentación: `338a0b4`  
+**Próximo**: F2H-C (Regresión Final) → F2H-D (Cierre Formal)
