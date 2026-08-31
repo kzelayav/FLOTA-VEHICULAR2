@@ -157,12 +157,12 @@ const ReportsModule = {
       case 'preventive':
         html = this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Acciones'],
           data.map(p=>[p.assetCode,p.type,fmtDate(p.lastDoneDate),p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours),fmtCurrency(p.cost||0),p.techName||'—',
-          ${Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deletePreventive('${p.id}')" title="Eliminar registro">🗑️</button>` : ''}]));
+          Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deletePreventive('${p.id}')" title="Eliminar registro">🗑️</button>` : '']));
         break;
       case 'corrective':
         html = this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Costo Total','Acciones'],
           data.map(c=>[c.assetCode,fmtDate(c.failureDate),c.failureCategory||'—',fmtHours(c.downtimeHours),c.provider||'—',fmtCurrency(c.totalCost),
-          ${Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deleteCorrective('${c.id}')" title="Eliminar registro">🗑️</button>` : ''}]));
+          Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deleteCorrective('${c.id}')" title="Eliminar registro">🗑️</button>` : '']));
         break;
       case 'kpis':
         const kpis = data[0]||{};
