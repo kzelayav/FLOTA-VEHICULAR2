@@ -196,6 +196,33 @@ newId() {
       });
   },
 
+  /* â”€â”€ Helper central de moneda â”€â”€ */
+  getCurrencySymbol(currencyCode) {
+    if (currencyCode === 'NIO') return 'C$';
+    if (currencyCode === 'Q') return 'Q';
+    return '?';
+  },
+
+  fmtCurrency(val, currencyCode) {
+    const sym = this.getCurrencySymbol(currencyCode);
+
+    // Valores nulos, indefinidos, vacíos o no numéricos → indicador neutro
+    if (val === null || val === undefined || val === '') {
+      return `${sym} —`;
+    }
+
+    const num = parseFloat(val);
+
+    // NaN, Infinity, -Infinity, o valor no numérico → indicador neutro
+    if (!Number.isFinite(num) || isNaN(num)) {
+      return `${sym} —`;
+    }
+
+    const sign = num < 0 ? '-' : '';
+    const abs = Math.abs(num);
+    return `${sign}${sym} ${abs.toLocaleString('es', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+  },
+
   /* â”€â”€ Lecturas desde Supabase â”€â”€ */
   async _selectAll(table, orderBy = 'created_at', ascending = true) {
     let q = this.supabase.from(table).select('*');
@@ -226,7 +253,7 @@ newId() {
   async _upsertSettingsRow(s) {
     const { error } = await this.supabase.from('configuracion').upsert([{
       id: 'default',
-      currency: s.currency || 'Q',
+currency: s.currency || 'NIO',
       date_format: s.dateFormat || 'DD/MM/YYYY',
       alert_days_ahead: parseInt(s.alertDaysAhead) || 7,
       updated_at: new Date().toISOString(),
@@ -259,8 +286,8 @@ newId() {
 
     const s = await this._getSettingsRow();
     this._cache.settings = s
-      ? { currency: s.currency || 'Q', dateFormat: s.date_format || 'DD/MM/YYYY', alertDaysAhead: parseInt(s.alert_days_ahead) || 7 }
-      : { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 };
+      ? { currency: s.currency || 'NIO', dateFormat: s.date_format || 'DD/MM/YYYY', alertDaysAhead: parseInt(s.alert_days_ahead) || 7 }
+      : { currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 };
   },
 
   /* ====================================================
@@ -309,8 +336,8 @@ newId() {
       alerts: alerts.map(r => this._fromAlertRow(r)),
       documents: docs.map(r => this._fromRow('documents', r)),
       settings: s
-        ? { currency: s.currency || 'Q', dateFormat: s.date_format || 'DD/MM/YYYY', alertDaysAhead: parseInt(s.alert_days_ahead) || 7 }
-        : { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 }
+        ? { currency: s.currency || 'NIO', dateFormat: s.date_format || 'DD/MM/YYYY', alertDaysAhead: parseInt(s.alert_days_ahead) || 7 }
+        : { currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 }
     };
 
     Object.assign(this._cache, tempCache);
@@ -349,7 +376,7 @@ newId() {
     await this._upsertRows('activos', assets.map(a => this._toAssetRow(a)));
     await this._upsertRows('mantenimientos', preventive.map(p => ({ ...this._toPreventiveRow(p), tipo: 'preventivo' })));
     await this._upsertRows('mantenimientos', corrective.map(c => ({ ...this._toCorrectiveRow(c), tipo: 'correctivo' })));
-    await this._upsertSettingsRow({ currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 });
+    await this._upsertSettingsRow({ currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 });
 
     const vehicularTypes = ['Camión','Camioneta','Carro','Motocicleta','Cabezal','Remolque','Tractor'];
     const vehicles = assets
@@ -368,7 +395,7 @@ newId() {
     this.set(this.KEYS.assets, assets);
     this.set(this.KEYS.preventive, preventive);
     this.set(this.KEYS.corrective, corrective);
-    this.saveSettings({ currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 });
+    this.saveSettings({ currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 });
     console.log('[DB] Seed data loaded successfully (v9)');
   },
 
@@ -586,7 +613,7 @@ newId() {
      ==================================================== */
   getSettings() { return this._cache.settings; },
   async saveSettings(s) {
-    const nextSettings = { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7, ...s };
+    const nextSettings = { currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7, ...s };
     await this._syncUpsertSettings(nextSettings);
     this._cache.settings = nextSettings;
     return nextSettings;
@@ -875,7 +902,7 @@ newId() {
     this._cache = {
       assets: [], preventive: [], corrective: [], audit: [],
       expenses: [], vehicles: [], drivers: [], alerts: [], documents: [],
-      settings: { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 },
+      settings: { currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 },
     };
   },
 
@@ -890,7 +917,7 @@ newId() {
     this._cache.drivers    = read(this.KEYS.drivers, []);
     this._cache.documents  = read(this.KEYS.documents, []);
     this._cache.alerts     = read(this.KEYS.alerts, []);
-    this._cache.settings   = read(this.KEYS.settings, { currency: 'Q', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 });
+    this._cache.settings   = read(this.KEYS.settings, { currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 });
   },
 
   _keyToCache(key) {

@@ -162,7 +162,7 @@ create table if not exists public.gastos (
 -- ============================ CONFIGURACIÓN ================================
 create table if not exists public.configuracion (
   id              text primary key default 'default',
-  currency        text default 'Q',
+  currency        text default 'NIO',
   date_format     text default 'DD/MM/YYYY',
   alert_days_ahead integer default 7,
   updated_at      timestamptz default now()

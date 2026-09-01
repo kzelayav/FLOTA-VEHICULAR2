@@ -156,24 +156,24 @@ const ReportsModule = {
         break;
       case 'preventive':
         html = this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Acciones'],
-          data.map(p=>[p.assetCode,p.type,fmtDate(p.lastDoneDate),p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours),fmtCurrency(p.cost||0),p.techName||'—',
+          data.map(p=>[p.assetCode,p.type,fmtDate(p.lastDoneDate),p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours),DB.fmtCurrency(p.cost||0),p.techName||'—',
           Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deletePreventive('${p.id}')" title="Eliminar registro">🗑️</button>` : '']));
         break;
       case 'corrective':
         html = this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Costo Total','Acciones'],
-          data.map(c=>[c.assetCode,fmtDate(c.failureDate),c.failureCategory||'—',fmtHours(c.downtimeHours),c.provider||'—',fmtCurrency(c.totalCost),
+          data.map(c=>[c.assetCode,fmtDate(c.failureDate),c.failureCategory||'—',fmtHours(c.downtimeHours),c.provider||'—',DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0)),
           Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deleteCorrective('${c.id}')" title="Eliminar registro">🗑️</button>` : '']));
         break;
       case 'kpis':
         const kpis = data[0]||{};
-        const cur = DB.getSettings().currency||'Q';
+        const cur = DB.getCurrencySymbol(DB.getSettings().currency);
         html = `<div class="grid-3" style="gap:12px">
           ${[
             ['Disponibilidad',`${kpis.disponibilidad}%`],
             ['MTBF',`${fmtNumber(kpis.mtbf,0)} hrs`],
             ['MTTR',fmtHours(kpis.mttr)],
-            ['Gasto Mensual',fmtCurrency(kpis.monthCost)],
-            ['Gasto Anual',fmtCurrency(kpis.yearCost)],
+            ['Gasto Mensual',DB.fmtCurrency(kpis.monthCost)],
+            ['Gasto Anual',DB.fmtCurrency(kpis.yearCost)],
             ['% Preventivo',`${kpis.preventPct}%`],
             ['Mantenimientos Vencidos',kpis.overdue],
             ['Equipos Operativos',kpis.operativeAssets],
@@ -274,7 +274,7 @@ const ReportsModule = {
 
     // Build a print-friendly page
     const printWin = window.open('','_blank','width=900,height=700');
-    const cur  = DB.getSettings().currency||'Q';
+    const cur  = DB.getCurrencySymbol(DB.getSettings().currency);
     let tableHtml = '';
 
     switch(this.reportType) {
@@ -287,13 +287,13 @@ const ReportsModule = {
       case 'preventive':
         tableHtml = `<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
           <thead><tr style="background:#1a56db;color:#fff">${['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Planta'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>${data.map(p=>`<tr><td>${p.assetCode}</td><td>${p.type}</td><td>${fmtDate(p.lastDoneDate)}</td><td>${p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours)}</td><td>${fmtCurrency(p.cost||0)}</td><td>${p.techName||'—'}</td><td>${p.plant||'—'}</td></tr>`).join('')}</tbody>
+          <tbody>${data.map(p=>`<tr><td>${p.assetCode}</td><td>${p.type}</td><td>${fmtDate(p.lastDoneDate)}</td><td>${p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours)}</td><td>${DB.fmtCurrency(p.cost||0)}</td><td>${p.techName||'—'}</td><td>${p.plant||'—'}</td></tr>`).join('')}</tbody>
         </table>`;
         break;
       case 'corrective':
         tableHtml = `<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
           <thead><tr style="background:#1a56db;color:#fff">${['Activo','Fecha Falla','Categoría','Tiempo Muerto','Proveedor','Costo Total'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>${data.map(c=>`<tr><td>${c.assetCode}</td><td>${fmtDate(c.failureDate)}</td><td>${c.failureCategory||'—'}</td><td>${fmtHours(c.downtimeHours)}</td><td>${c.provider||'—'}</td><td>${fmtCurrency(c.totalCost)}</td></tr>`).join('')}</tbody>
+          <tbody>${data.map(c=>`<tr><td>${c.assetCode}</td><td>${fmtDate(c.failureDate)}</td><td>${c.failureCategory||'—'}</td><td>${fmtHours(c.downtimeHours)}</td><td>${c.provider||'—'}</td><td>${DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0))}</td></tr>`).join('')}</tbody>
         </table>`;
         break;
       case 'kpis': {
@@ -302,7 +302,7 @@ const ReportsModule = {
           <thead><tr style="background:#1a56db;color:#fff"><th>Indicador</th><th>Valor</th></tr></thead>
           <tbody>
             ${[['Disponibilidad',`${k.disponibilidad}%`],['MTBF',`${fmtNumber(k.mtbf,0)} hrs`],['MTTR',fmtHours(k.mttr)],
-               ['Gasto Mensual',fmtCurrency(k.monthCost)],['Gasto Anual',fmtCurrency(k.yearCost)],
+               ['Gasto Mensual',DB.fmtCurrency(k.monthCost)],['Gasto Anual',DB.fmtCurrency(k.yearCost)],
                ['% Preventivo',`${k.preventPct}%`],['Correctivo',`${k.correctivePct}%`],
                ['Equipos Operativos',k.operativeAssets],['Fuera de Servicio',k.failedAssets],
                ['Fallas Este Año',k.totalCorrectiveThisYear],['Costo/Hora',`${cur} ${k.costPerHr}`],['Costo/Km',`${cur} ${k.costPerKm}`]
@@ -347,8 +347,9 @@ const SettingsModule = {
     </div>
     <div class="card" style="max-width:500px">
       <div class="card-title mb-16">Configuración General</div>
-      <div class="form-group"><label class="form-label">Moneda (símbolo)</label>
-        <input class="form-control" id="sett-cur" value="${s.currency||'Q'}" placeholder="Q, $, €...">
+      <div class="form-group"><label class="form-label">Moneda</label>
+        <input class="form-control" id="sett-cur" value="NIO" readonly placeholder="C$" title="Moneda fija: Córdoba nicaragüense (NIO)">
+        <small class="text-muted">Córdoba nicaragüense (NIO) — Símbolo: C$</small>
       </div>
       <div class="form-group"><label class="form-label">Días de anticipación para alertas</label>
         <input class="form-control" type="number" id="sett-days" value="${s.alertDaysAhead||7}" min="1" max="30">
@@ -370,15 +371,9 @@ const SettingsModule = {
       return;
     }
 
-    const curEl = document.getElementById('sett-cur');
     const daysEl = document.getElementById('sett-days');
-    const cur = curEl?.value?.trim() || 'Q';
     const days = parseInt(daysEl?.value, 10);
 
-    if (!cur) {
-      showToast('Moneda requerida','error');
-      return;
-    }
     if (!Number.isFinite(days) || days < 1) {
       showToast('Días de anticipación inválido','error');
       return;
@@ -395,7 +390,7 @@ const SettingsModule = {
     }
 
     try {
-      await DB.saveSettings({ currency: cur, alertDaysAhead: days });
+      await DB.saveSettings({ currency: 'NIO', alertDaysAhead: days });
       DB.addAudit({ user: Auth.getSession()?.name || '', action: 'SETTINGS', detail: 'Configuración guardada' });
       showToast('Configuración guardada','success');
     } catch (err) {

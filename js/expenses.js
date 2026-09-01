@@ -156,7 +156,7 @@ const ExpensesModule = {
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Monto (${DB.getSettings().currency||'Q'}) *</label>
+        <label class="form-label">Monto (${DB.getCurrencySymbol(DB.getSettings().currency)}) *</label>
         <input class="form-control" type="number" id="ef-amount" value="${v.amount||0}" min="0" step="0.01">
       </div>
       <div class="form-group">

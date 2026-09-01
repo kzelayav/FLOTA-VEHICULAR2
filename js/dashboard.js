@@ -144,7 +144,7 @@ const DashboardModule = {
   },
 
   renderKPIs(kpis) {
-    const cur = DB.getSettings().currency || 'Q';
+    const cur = DB.getCurrencySymbol(DB.getSettings().currency);
     const el = document.getElementById('dash-kpi-grid');
     if (!el) return;
     const cards = [
@@ -180,7 +180,7 @@ const DashboardModule = {
     };
 
     /* Monthly trend */
-    const cur  = DB.getSettings().currency || 'Q';
+    const cur  = DB.getCurrencySymbol(DB.getSettings().currency);
     const mc = kpis.monthlyCosts;
     const ctx1 = document.getElementById('chart-monthly');
     if (ctx1) this.charts.monthly = new Chart(ctx1, {
@@ -232,7 +232,7 @@ const DashboardModule = {
         <div class="rank-name">${item.asset.brand} ${item.asset.model}</div>
         <div class="rank-code">${item.asset.code} · ${item.asset.location||'—'}</div>
       </div>
-      <div class="rank-cost">${fmtCurrency(item.cost)}</div>
+      <div class="rank-cost">${DB.fmtCurrency(item.cost)}</div>
     </div>`).join('');
   },
 

@@ -536,10 +536,9 @@ function fmtDate(str) {
   return d.toLocaleDateString('es', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
-function fmtCurrency(val) {
-  const s = DB.getSettings();
-  const sym = s.currency || 'Q';
-  return `${sym} ${parseFloat(val||0).toLocaleString('es',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+// fmtCurrency delega al helper central en DB
+function fmtCurrency(val, currencyCode) {
+  return DB.fmtCurrency(val, currencyCode);
 }
 
 function fmtNumber(val, dec=0) {
