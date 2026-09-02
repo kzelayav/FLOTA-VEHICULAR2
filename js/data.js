@@ -1291,6 +1291,7 @@ _persistDeleteAsset(id) {
   _fromPreventiveRow(r) {
     return {
       id: r.id, assetId: r.activo_id, assetCode: r.activo_code, type: r.service_type,
+      tipo: 'preventivo',
       frequency: r.frequency, frequencyValue: r.frequency_value,
       lastDoneKm: r.last_done_km, lastDoneDate: r.last_done_date,
       nextDueKm: r.next_due_km, nextDueHours: r.next_due_hours, nextDueDate: r.next_due_date,
@@ -1315,6 +1316,7 @@ _persistDeleteAsset(id) {
   _fromCorrectiveRow(r) {
     return {
       id: r.id, assetId: r.activo_id, assetCode: r.activo_code,
+      tipo: 'correctivo',
       failureDate: r.failure_date, failureType: r.service_type, failureCategory: r.failure_category,
       description: r.description, downtimeHours: r.downtime_hours, repairDate: r.repair_date,
       provider: r.provider, meterKm: r.last_done_km || null, meterHours: r.last_done_hours || null,
