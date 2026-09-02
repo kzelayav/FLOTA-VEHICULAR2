@@ -360,12 +360,12 @@ newId() {
     }
 
     // Promedio positivo (solo value > 0)
-    const positiveCosts = [
+    const positiveCostRecords = [
       ...prevEvaluated.filter(p => p._cost.isIncluded && p._cost.value > 0 && inCurrentMonth(p.lastDoneDate)),
       ...corrEvaluated.filter(c => c._cost.isIncluded && c._cost.value > 0 && inCurrentMonth(c.repairDate))
     ];
-    const avgPositiveMaintenanceCost = positiveCosts.length > 0
-      ? positiveCosts.reduce((s, r) => s + r._cost.value, 0) / positiveCosts.length
+    const avgPositiveMaintenanceCost = positiveCostRecords.length > 0
+      ? positiveCostRecords.reduce((s, r) => s + r._cost.value, 0) / positiveCostRecords.length
       : null;
 
     // Ranking mensual por activo
@@ -397,7 +397,7 @@ newId() {
     // financialCoverage
     const evaluatedRecords = prevEvaluated.length + corrEvaluated.length;
     const includedRecords = prevEvaluated.filter(p => p._cost.isIncluded).length + corrEvaluated.filter(c => c._cost.isIncluded).length;
-    const positiveCosts = prevEvaluated.filter(p => p._cost.status === 'valid_positive').length + corrEvaluated.filter(c => c._cost.status === 'valid_positive').length;
+    const positiveCostCount = prevEvaluated.filter(p => p._cost.status === 'valid_positive').length + corrEvaluated.filter(c => c._cost.status === 'valid_positive').length;
     const zeroCosts = prevEvaluated.filter(p => p._cost.status === 'valid_zero').length + corrEvaluated.filter(c => c._cost.status === 'valid_zero').length;
     const partialMissingCosts = prevEvaluated.filter(p => p._cost.status === 'partial_missing').length + corrEvaluated.filter(c => c._cost.status === 'partial_missing').length;
     const missingCosts = prevEvaluated.filter(p => p._cost.status === 'missing').length + corrEvaluated.filter(c => c._cost.status === 'missing').length;
@@ -416,7 +416,7 @@ newId() {
     const financialCoverage = {
       evaluatedRecords,
       includedRecords,
-      positiveCosts,
+      positiveCostCount,
       zeroCosts,
       partialMissingCosts,
       missingCosts,
