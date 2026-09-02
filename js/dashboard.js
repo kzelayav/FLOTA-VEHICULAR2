@@ -144,28 +144,19 @@ const DashboardModule = {
   },
 
   renderKPIs(kpis) {
-    const cur = DB.getCurrencySymbol(DB.getSettings().currency);
     const el = document.getElementById('dash-kpi-grid');
     if (!el) return;
     const cards = [
-      { icon:'🏭', color:'green',  val:`${kpis.disponibilidad}%`,   label:'Disponibilidad Operacional',    sub:`${kpis.operativeAssets}/${kpis.totalAssets} equipos` },
-      { icon:'⏱️', color:'blue',   val:`${fmtNumber(kpis.mtbf,0)} hrs`, label:'MTBF — Entre Fallas',      sub:'Tiempo medio entre fallas' },
-      { icon:'🔧', color:'yellow', val:`${fmtHours(kpis.mttr)}`,    label:'MTTR — Reparación',             sub:'Tiempo medio de reparación' },
-      { icon:'💰', color:'purple', val:`${cur} ${fmtNumber(kpis.monthCost,0)}`, label:'Gasto Mensual',   sub:'Este mes' },
-      { icon:'📅', color:'blue',   val:`${cur} ${fmtNumber(kpis.yearCost,0)}`,  label:'Gasto Anual',    sub:new Date().getFullYear() },
-      { icon:'⚡', color:'green',  val:`${kpis.preventPct}%`,       label:'Preventivo vs Total',           sub:`${kpis.correctivePct}% correctivo` },
-      { icon:'🚨', color:'red',    val:kpis.overdue,                 label:'Mantenimientos Vencidos',       sub:'Requieren atención inmediata' },
-      { icon:'⏰', color:'yellow', val:kpis.upcomingSoon,            label:'Próximos a Vencer',             sub:'En los próximos 7 días' },
-      { icon:'💵', color:'cyan',   val:`${cur}${parseFloat(kpis.costPerHr).toFixed(0)}/hr`, label:'Costo por Hora', sub:'Promedio flota' },
-      { icon:'🛣️', color:'cyan',  val:`${cur}${parseFloat(kpis.costPerKm).toFixed(2)}/km`, label:'Costo por Km', sub:'Promedio flota' },
-      { icon:'🔴', color:'red',    val:kpis.failedAssets,            label:'Fuera de Servicio',             sub:'Equipos no disponibles' },
-      { icon:'📊', color:'purple', val:kpis.totalCorrectiveThisYear, label:'Fallas Este Año',               sub:`${new Date().getFullYear()}` },
+      { icon:'📅', color:'purple', val: DB.fmtCurrency(kpis.monthCost), label:'Costo de Mantenimiento Mensual', sub:'Mes actual' },
+      { icon:'📊', color:'blue',   val: DB.fmtCurrency(kpis.yearCost), label:'Costo de Mantenimiento Anual', sub:'Año actual' },
+      { icon:'🛡️', color:'green',  val: DB.fmtCurrency(kpis.monthlyPreventiveCost), label:'Costo Preventivo del Mes', sub:'Preventivos ejecutados en el mes' },
+      { icon:'🔧', color:'red',    val: DB.fmtCurrency(kpis.monthlyCorrectiveCost), label:'Costo Correctivo del Mes', sub:'Correctivos reparados en el mes' },
     ];
     el.innerHTML = cards.map(c=>`
     <div class="kpi-card kpi-${c.color}">
       <div class="kpi-header">
         <div class="kpi-icon kpi-icon-${c.color}">${c.icon}</div>
-        <span class="semaphore ${c.color==='green'?'sem-green':c.color==='red'?'sem-red':c.color==='yellow'?'sem-yellow':''}"></span>
+        <span class="semaphore ${c.color==='green'?'sem-green':c.color==='red'?'sem-red':c.color==='blue'?'sem-blue':c.color==='purple'?'sem-purple':''}"></span>
       </div>
       <div class="kpi-value">${c.val}</div>
       <div class="kpi-label">${c.label}</div>

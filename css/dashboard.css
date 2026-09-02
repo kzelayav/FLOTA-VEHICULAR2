@@ -210,6 +210,10 @@
 .asc-info    .asc-num { color: var(--info); }
 .asc-success .asc-num { color: var(--success); }
 
+/* Semaphore colors for financial KPIs */
+.sem-blue   { background: var(--primary); box-shadow: 0 0 6px var(--primary); }
+.sem-purple { background: #a855f7; box-shadow: 0 0 6px #a855f7; }
+
 /* Progress bars */
 .progress-bar-wrap {
   width: 100%;
