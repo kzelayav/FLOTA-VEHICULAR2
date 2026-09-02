@@ -320,18 +320,18 @@ newId() {
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    function inCurrentMonth(dateStr) {
+    const inCurrentMonth = (dateStr) => {
       if (!dateStr) return false;
       const d = this._parseLocalDate(dateStr);
       if (!d) return false;
       return d >= monthStart && d <= monthEnd;
-    }
-    function inCurrentYear(dateStr) {
+    };
+    const inCurrentYear = (dateStr) => {
       if (!dateStr) return false;
       const d = this._parseLocalDate(dateStr);
       if (!d) return false;
       return d >= yearStart && d <= new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-    }
+    };
 
     // Evaluar preventivos
     const prevInMonth = prevEvaluated.filter(p => p._cost.isIncluded && inCurrentMonth(p.lastDoneDate));
