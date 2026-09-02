@@ -1571,5 +1571,4 @@ _persistDeleteAsset(id) {
       financialCoverage
     };
   },
-  },
 };
