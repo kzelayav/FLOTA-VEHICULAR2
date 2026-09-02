@@ -6,6 +6,16 @@ const DashboardModule = {
   charts: {},
   filter: { area:'', localidad:'', departamento:'' },
 
+  _escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>')
+      .replace(/"/g, '"')
+      .replace(/'/g, '&#039;');
+  },
+
   render() {
     const assets = DB.getAssets();
     const areas = [...new Set(assets.map(a=>a.area))].filter(Boolean);
@@ -56,7 +66,7 @@ const DashboardModule = {
       </div>
     </div>
 
-    <!-- Charts Row 2 -->
+    <!-- Charts Row 2: Failures + Distribution -->
     <div class="charts-grid mb-0" style="margin-bottom:20px; grid-template-columns: 1fr 1fr;">
       <div class="chart-card">
         <div class="chart-card-header">
@@ -66,20 +76,33 @@ const DashboardModule = {
       </div>
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">⚡ Prev. vs Correctivo</div></div>
+          <div><div class="chart-title">🍩 Distribución del Costo de Mantenimiento</div></div>
         </div>
         <div class="chart-canvas-wrapper"><canvas id="chart-prevvscorr"></canvas></div>
       </div>
     </div>
 
-    <!-- Bottom Row: Top Costly + Availability -->
+    <!-- Financial Coverage Notice -->
+    <div id="dash-coverage-notice" style="margin-bottom:20px;"></div>
+
+    <!-- Bottom Row: Financial Ranking + Average Cost -->
     <div class="grid-2" style="gap:20px">
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">🏆 Top 10 Equipos más Costosos</div></div>
+          <div><div class="chart-title">🏆 Activos con Mayor Costo de Mantenimiento</div><div class="chart-subtitle">Mes actual</div></div>
         </div>
         <div id="dash-ranking"></div>
       </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-title">📈 Costo Promedio de Mantenimientos con Costo Positivo</div></div>
+        </div>
+        <div id="dash-avg-cost"></div>
+      </div>
+    </div>
+
+    <!-- Availability Row (unchanged) -->
+    <div class="grid-2" style="gap:20px; margin-top:20px;">
       <div class="chart-card">
         <div class="chart-card-header">
           <div><div class="chart-title">📊 Disponibilidad por Equipo</div></div>
@@ -96,6 +119,8 @@ const DashboardModule = {
     this.renderAlertRow(kpis);
     this.renderCharts(kpis);
     this.renderRanking(kpis);
+    this.renderAvgCost(kpis);
+    this.renderCoverageNotice(kpis);
     this.renderAvailability(kpis);
     document.getElementById('dash-updated').textContent = `Actualizado: ${new Date().toLocaleTimeString('es')}`;
   },
@@ -170,19 +195,19 @@ const DashboardModule = {
       scales: { x: { ticks:{color:'#64748b'}, grid:{color:'rgba(255,255,255,0.04)'} }, y: { ticks:{color:'#64748b'}, grid:{color:'rgba(255,255,255,0.04)'} } },
     };
 
-    /* Monthly trend */
-    const cur  = DB.getCurrencySymbol(DB.getSettings().currency);
-    const mc = kpis.monthlyCosts;
+    /* Monthly trend (legacy) */
+    const cur = DB.getCurrencySymbol(DB.getSettings().currency);
+    const mc = kpis.monthlyCosts || [];
     const ctx1 = document.getElementById('chart-monthly');
     if (ctx1) this.charts.monthly = new Chart(ctx1, {
       type: 'bar',
       data: {
-        labels: mc.map(m=>m.label),
+        labels: mc.map(m => m.label),
         datasets: [
-          { label:'Total', data: mc.map(m=>m.total), backgroundColor:'rgba(59,130,246,0.6)', borderColor:'#3b82f6', borderWidth:1, borderRadius:4 },
+          { label: 'Total', data: mc.map(m => m.total || 0), backgroundColor: 'rgba(59,130,246,0.6)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 4 },
         ],
       },
-      options: { ...CHART_DEFAULTS, responsive:true, maintainAspectRatio:false, plugins:{ ...CHART_DEFAULTS.plugins, tooltip:{ callbacks:{ label: ctx=>`${cur} ${ctx.parsed.y?.toLocaleString('es')}` } } } },
+      options: { ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false, plugins: { ...CHART_DEFAULTS.plugins, tooltip: { callbacks: { label: ctx => `${cur} ${ctx.parsed.y?.toLocaleString('es')}` } } } },
     });
 
     /* Failures by category */
@@ -200,31 +225,129 @@ const DashboardModule = {
       options: { ...CHART_DEFAULTS, responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{...CHART_DEFAULTS.plugins, legend:{display:false}} },
     });
 
-    /* Preventive vs Corrective pie */
+    /* Distribution donut - using preventiveCostPct / correctiveCostPct */
     const ctx4 = document.getElementById('chart-prevvscorr');
-    if (ctx4) this.charts.pvc = new Chart(ctx4, {
-      type: 'pie',
-      data: {
-        labels: ['Preventivo','Correctivo'],
-        datasets: [{ data:[kpis.preventPct,kpis.correctivePct], backgroundColor:['#10b981','#ef4444'], borderWidth:2, borderColor:'#131929' }],
-      },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } }, tooltip:{ callbacks:{ label: ctx=>`${ctx.label}: ${ctx.parsed}%` } } } },
-    });
+    const hasDist = kpis.hasCostDistribution === true;
+    const prevPct = kpis.preventiveCostPct || 0;
+    const corrPct = kpis.correctiveCostPct || 0;
+    const prevAmount = kpis.monthlyPreventiveCost || 0;
+    const corrAmount = kpis.monthlyCorrectiveCost || 0;
+
+    if (ctx4) {
+      if (hasDist) {
+        this.charts.pvc = new Chart(ctx4, {
+          type: 'doughnut',
+          data: {
+            labels: ['Preventivo', 'Correctivo'],
+            datasets: [{
+              data: [prevPct, corrPct],
+              backgroundColor: ['#10b981', '#ef4444'],
+              borderWidth: 2,
+              borderColor: '#131929',
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => {
+                    const pct = ctx.parsed.toFixed(1);
+                    const amount = ctx.dataIndex === 0 ? prevAmount : corrAmount;
+                    return `${ctx.label}: ${pct}% (${DB.fmtCurrency(amount)})`;
+                  }
+                }
+              }
+            }
+          },
+        });
+      } else {
+        // Empty state for distribution
+        this.charts.pvc = new Chart(ctx4, {
+          type: 'doughnut',
+          data: { labels: [], datasets: [] },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              ...CHART_DEFAULTS.plugins,
+              title: {
+                display: true,
+                text: 'Sin datos de costos en el período actual',
+                color: '#94a3b8',
+                font: { size: 13 }
+              }
+            }
+          }
+        });
+      }
+    }
   },
 
   renderRanking(kpis) {
     const el = document.getElementById('dash-ranking');
     if (!el) return;
-    if (!kpis.topEquip.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>Sin datos</h3></div>`; return; }
-    el.innerHTML = kpis.topEquip.slice(0,10).map((item,i)=>`
-    <div class="ranking-item">
+    const ranking = kpis.topAssetsByMaintenanceCost || [];
+    if (!ranking.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>Sin activos con costo de mantenimiento este mes</h3></div>`; return; }
+    el.innerHTML = ranking.slice(0,10).map((item,i)=>`
+    <div class="ranking-item financial">
       <div class="rank-num ${i<3?'top3':''}">${i+1}</div>
       <div class="rank-info">
-        <div class="rank-name">${item.asset.brand} ${item.asset.model}</div>
-        <div class="rank-code">${item.asset.code} · ${item.asset.location||'—'}</div>
+        <div class="rank-name">${this._escapeHtml(item.code || 'Activo sin código')}</div>
+        <div class="rank-breakdown">
+          <span class="rank-preventive">${DB.fmtCurrency(item.preventiveCost)}</span>
+          <span class="rank-separator">·</span>
+          <span class="rank-corrective">${DB.fmtCurrency(item.correctiveCost)}</span>
+        </div>
       </div>
-      <div class="rank-cost">${DB.fmtCurrency(item.cost)}</div>
+      <div class="rank-cost">${DB.fmtCurrency(item.totalCost)}</div>
     </div>`).join('');
+  },
+
+  renderAvgCost(kpis) {
+    const el = document.getElementById('dash-avg-cost');
+    if (!el) return;
+    const avg = kpis.avgPositiveMaintenanceCost;
+    if (avg === null || avg === undefined) {
+      el.innerHTML = `
+      <div class="avg-cost-card">
+        <div class="avg-cost-value">—</div>
+        <div class="avg-cost-sub">Ningún mantenimiento con costo positivo este mes</div>
+      </div>`;
+      return;
+    }
+    el.innerHTML = `
+    <div class="avg-cost-card">
+      <div class="avg-cost-value">${DB.fmtCurrency(avg)}</div>
+      <div class="avg-cost-sub">Promedio mensual de costos válidos mayores que cero</div>
+    </div>`;
+  },
+
+  renderCoverageNotice(kpis) {
+    const el = document.getElementById('dash-coverage-notice');
+    if (!el) return;
+    const fc = kpis.financialCoverage;
+    if (!fc) { el.innerHTML = ''; return; }
+    const anomalies = [];
+    if (fc.partialMissingCosts > 0) anomalies.push(`${fc.partialMissingCosts} coberturas parciales`);
+    if (fc.missingCosts > 0) anomalies.push(`${fc.missingCosts} costos faltantes`);
+    if (fc.invalidCosts > 0) anomalies.push(`${fc.invalidCosts} costos inválidos`);
+    if (fc.negativeCosts > 0) anomalies.push(`${fc.negativeCosts} costos negativos`);
+    if (fc.invalidTypes > 0) anomalies.push(`${fc.invalidTypes} tipos inválidos`);
+    if (fc.missingFinancialDates > 0) anomalies.push(`${fc.missingFinancialDates} fechas financieras ausentes`);
+    if (fc.missingAssetIdForRanking > 0) anomalies.push(`${fc.missingAssetIdForRanking} sin activo para ranking`);
+    if (anomalies.length === 0) { el.innerHTML = ''; return; }
+    const show = anomalies.slice(0, 3);
+    const extra = anomalies.length > 3 ? ` y ${anomalies.length - 3} observaciones adicionales` : '';
+    el.innerHTML = `
+    <div class="coverage-notice">
+      <span class="coverage-icon">⚠️</span>
+      <span class="coverage-label">Calidad de datos: </span>
+      <span class="coverage-details">${show.join(' · ')}${extra}</span>
+    </div>`;
   },
 
   renderAvailability(kpis) {
