@@ -384,11 +384,11 @@ newId() {
 
     const topAssetsByMaintenanceCost = Array.from(costByAsset.entries())
       .map(([id, data]) => ({ assetId: id, ...data }))
-      .sort((a, b) => b.totalCost - a.totalCost || (a.asset.code || '').localeCompare(b.asset.code || ''))
+      .sort((a, b) => b.totalCost - a.totalCost || (a.asset.assetCode || '').localeCompare(b.asset.assetCode || ''))
       .slice(0, 10)
       .map(({ assetId, asset, preventiveCost, correctiveCost, totalCost }) => ({
         assetId,
-        code: asset?.code || '',
+        code: asset?.assetCode || '',
         preventiveCost,
         correctiveCost,
         totalCost
