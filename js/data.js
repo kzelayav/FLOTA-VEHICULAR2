@@ -228,6 +228,221 @@ newId() {
     return `${sign}${sym} ${abs.toLocaleString('es', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
   },
 
+  /* â”€â”€ Parser seguro de fechas YYYY-MM-DD sin desplazamiento UTC â”€â”€ */
+  _parseLocalDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    const trimmed = dateStr.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+    const year = parseInt(trimmed.substring(0, 4), 10);
+    const month = parseInt(trimmed.substring(5, 7), 10) - 1;
+    const day = parseInt(trimmed.substring(8, 10), 10);
+    if (year < 1900 || year > 2100 || month < 0 || month > 11 || day < 1 || day > 31) return null;
+    const d = new Date(year, month, day);
+    if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) return null;
+    return d;
+  },
+
+  /* â”€â”€ Parser estricto de costos â”€â”€ */
+  _parseCost(val) {
+    if (val === null || val === undefined || val === '' || (typeof val === 'string' && val.trim() === '')) {
+      return { valid: false, value: null, reason: 'missing' };
+    }
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (trimmed === '') return { valid: false, value: null, reason: 'missing' };
+      // Verificar que la cadena es numérica limpia (sin caracteres extra)
+      if (!/^[+-]?\d+(\.\d+)?$/.test(trimmed)) {
+        return { valid: false, value: null, reason: 'invalid' };
+      }
+    }
+    const num = parseFloat(val);
+    if (!Number.isFinite(num) || isNaN(num)) {
+      return { valid: false, value: null, reason: 'invalid' };
+    }
+    if (num < 0) return { valid: true, value: num, reason: 'negative' };
+    if (num === 0) return { valid: true, value: 0, reason: 'zero' };
+    return { valid: true, value: num, reason: 'positive' };
+  },
+
+  /* â”€â”€ Evaluador de costo por registro â”€â”€ */
+  getMaintenanceCost(record) {
+    if (!record || !record.tipo) {
+      return { value: null, status: 'invalid_type', maintenanceType: 'unknown', isIncluded: false, issue: 'Tipo de mantenimiento no definido' };
+    }
+    if (record.tipo === 'preventivo') {
+      const costInfo = this._parseCost(record.cost);
+      if (!costInfo.valid) {
+        return { value: null, status: costInfo.reason, maintenanceType: 'preventivo', isIncluded: false, issue: costInfo.reason };
+      }
+      const statusMap = { positive: 'valid_positive', zero: 'valid_zero', negative: 'negative' };
+      return {
+        value: costInfo.value,
+        status: statusMap[costInfo.reason] || 'valid_positive',
+        maintenanceType: 'preventivo',
+        isIncluded: costInfo.reason !== 'negative',
+        issue: costInfo.reason === 'negative' ? 'Costo negativo detectado' : null
+      };
+    }
+    if (record.tipo === 'correctivo') {
+      const labor = this._parseCost(record.laborCost);
+      const parts = this._parseCost(record.partsCost);
+      if (!labor.valid && !parts.valid) {
+        return { value: null, status: 'missing', maintenanceType: 'correctivo', isIncluded: false, issue: 'Ambos componentes ausentes' };
+      }
+      const laborValid = labor.valid;
+      const partsValid = parts.valid;
+      const laborVal = laborValid ? labor.value : 0;
+      const partsVal = partsValid ? parts.value : 0;
+      const total = laborVal + partsVal;
+      const hasPartial = labor.valid !== parts.valid;
+      const anyNegative = (labor.valid && labor.value < 0) || (parts.valid && parts.value < 0);
+      if (anyNegative) {
+        return { value: total, status: 'negative', maintenanceType: 'correctivo', isIncluded: false, issue: 'Componente negativo' };
+      }
+      if (total === 0) {
+        return { value: 0, status: 'valid_zero', maintenanceType: 'correctivo', isIncluded: true, issue: null };
+      }
+      const status = labor.valid !== parts.valid ? 'partial_missing' : 'valid_positive';
+      const issue = labor.valid !== parts.valid ? 'Cobertura parcial (solo mano de obra o solo repuestos)' : null;
+      return { value: total, status, maintenanceType: 'correctivo', isIncluded: true, issue };
+    }
+    return { value: null, status: 'invalid_type', maintenanceType: record.tipo, isIncluded: false, issue: 'Tipo desconocido: ' + record.tipo };
+  },
+
+  /* â”€â”€ Agregador financiero central â”€â”€ */
+  _aggregateFinancials(preventive, corrective, now, filter) {
+    // Evaluar cada registro
+    const prevEvaluated = preventive.map(p => ({ ...p, _cost: this.getMaintenanceCost(p) }));
+    const corrEvaluated = corrective.map(c => ({ ...c, _cost: this.getMaintenanceCost(c) }));
+
+    // Filtrar por fecha financiera (mes actual / año actual)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    function inCurrentMonth(dateStr) {
+      if (!dateStr) return false;
+      const d = this._parseLocalDate(dateStr);
+      if (!d) return false;
+      return d >= monthStart && d <= monthEnd;
+    }
+    function inCurrentYear(dateStr) {
+      if (!dateStr) return false;
+      const d = this._parseLocalDate(dateStr);
+      if (!d) return false;
+      return d >= yearStart && d <= new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+    }
+
+    // Evaluar preventivos
+    const prevInMonth = prevEvaluated.filter(p => p._cost.isIncluded && inCurrentMonth(p.lastDoneDate));
+    const prevInYear = prevEvaluated.filter(p => p._cost.isIncluded && inCurrentYear(p.lastDoneDate));
+
+    // Evaluar correctivos (fecha financiera = repairDate)
+    const corrInMonth = corrEvaluated.filter(c => c._cost.isIncluded && inCurrentMonth(c.repairDate));
+    const corrInYear = corrEvaluated.filter(c => c._cost.isIncluded && inCurrentYear(c.repairDate));
+
+    // Costos
+    const monthlyPreventiveCost = prevInMonth.reduce((s, p) => s + p._cost.value, 0);
+    const monthlyCorrectiveCost = corrInMonth.reduce((s, c) => s + c._cost.value, 0);
+    const monthCost = monthlyPreventiveCost + monthlyCorrectiveCost;
+
+    const annualPreventiveCost = prevInYear.reduce((s, p) => s + p._cost.value, 0);
+    const annualCorrectiveCost = corrInYear.reduce((s, c) => s + c._cost.value, 0);
+    const yearCost = annualPreventiveCost + annualCorrectiveCost;
+
+    // Distribución por costo
+    let preventiveCostPct = 0, correctiveCostPct = 0, hasCostDistribution = false;
+    const monthCostTotal = monthCost;
+    if (monthCostTotal > 0) {
+      preventiveCostPct = (monthlyPreventiveCost / monthCostTotal) * 100;
+      correctiveCostPct = (monthlyCorrectiveCost / monthCostTotal) * 100;
+      hasCostDistribution = true;
+    }
+
+    // Promedio positivo (solo value > 0)
+    const positiveCosts = [
+      ...prevEvaluated.filter(p => p._cost.isIncluded && p._cost.value > 0 && inCurrentMonth(p.lastDoneDate)),
+      ...corrEvaluated.filter(c => c._cost.isIncluded && c._cost.value > 0 && inCurrentMonth(c.repairDate))
+    ];
+    const avgPositiveMaintenanceCost = positiveCosts.length > 0
+      ? positiveCosts.reduce((s, r) => s + r._cost.value, 0) / positiveCosts.length
+      : null;
+
+    // Ranking mensual por activo
+    const costByAsset = new Map();
+    [...prevEvaluated.filter(p => p._cost.isIncluded && inCurrentMonth(p.lastDoneDate)),
+     ...corrEvaluated.filter(c => c._cost.isIncluded && inCurrentMonth(c.repairDate))]
+      .forEach(r => {
+        if (!r.assetId) return;
+        const existing = costByAsset.get(r.assetId) || { preventiveCost: 0, correctiveCost: 0, totalCost: 0, asset: r };
+        if (r.tipo === 'preventivo') existing.preventiveCost += r._cost.value;
+        else existing.correctiveCost += r._cost.value;
+        existing.totalCost += r._cost.value;
+        existing.asset = r;
+        costByAsset.set(r.assetId, existing);
+      });
+
+    const topAssetsByMaintenanceCost = Array.from(costByAsset.entries())
+      .map(([id, data]) => ({ assetId: id, ...data }))
+      .sort((a, b) => b.totalCost - a.totalCost || (a.asset.code || '').localeCompare(b.asset.code || ''))
+      .slice(0, 10)
+      .map(({ assetId, asset, preventiveCost, correctiveCost, totalCost }) => ({
+        assetId,
+        code: asset?.code || '',
+        preventiveCost,
+        correctiveCost,
+        totalCost
+      }));
+
+    // financialCoverage
+    const evaluatedRecords = prevEvaluated.length + corrEvaluated.length;
+    const includedRecords = prevEvaluated.filter(p => p._cost.isIncluded).length + corrEvaluated.filter(c => c._cost.isIncluded).length;
+    const positiveCosts = prevEvaluated.filter(p => p._cost.status === 'valid_positive').length + corrEvaluated.filter(c => c._cost.status === 'valid_positive').length;
+    const zeroCosts = prevEvaluated.filter(p => p._cost.status === 'valid_zero').length + corrEvaluated.filter(c => c._cost.status === 'valid_zero').length;
+    const partialMissingCosts = prevEvaluated.filter(p => p._cost.status === 'partial_missing').length + corrEvaluated.filter(c => c._cost.status === 'partial_missing').length;
+    const missingCosts = prevEvaluated.filter(p => p._cost.status === 'missing').length + corrEvaluated.filter(c => c._cost.status === 'missing').length;
+    const invalidCosts = prevEvaluated.filter(p => p._cost.status === 'invalid').length + corrEvaluated.filter(c => c._cost.status === 'invalid').length;
+    const negativeCosts = prevEvaluated.filter(p => p._cost.status === 'negative').length + corrEvaluated.filter(c => c._cost.status === 'negative').length;
+    const invalidTypes = prevEvaluated.filter(p => p._cost.status === 'invalid_type').length + corrEvaluated.filter(c => c._cost.status === 'invalid_type').length;
+
+    // Fechas financieras faltantes (solo para registros con costo incluido o potencialmente incluido)
+    const missingFinancialDates = prevEvaluated.filter(p => p._cost.isIncluded && !p.lastDoneDate).length +
+                                  corrEvaluated.filter(c => c._cost.isIncluded && !c.repairDate).length;
+
+    // assetId faltante para ranking (solo en registros con costo incluido)
+    const missingAssetIdForRanking = prevEvaluated.filter(p => p._cost.isIncluded && !p.assetId).length +
+                                     corrEvaluated.filter(c => c._cost.isIncluded && !c.assetId).length;
+
+    const financialCoverage = {
+      evaluatedRecords,
+      includedRecords,
+      positiveCosts,
+      zeroCosts,
+      partialMissingCosts,
+      missingCosts,
+      invalidCosts,
+      negativeCosts,
+      invalidTypes,
+      missingFinancialDates,
+      missingAssetIdForRanking
+    };
+
+    return {
+      monthlyPreventiveCost,
+      monthlyCorrectiveCost,
+      monthCost,
+      annualPreventiveCost,
+      annualCorrectiveCost,
+      yearCost,
+      preventiveCostPct,
+      correctiveCostPct,
+      hasCostDistribution,
+      avgPositiveMaintenanceCost,
+      topAssetsByMaintenanceCost,
+      financialCoverage
+    };
+  },
+
   /* â”€â”€ Lecturas desde Supabase â”€â”€ */
   async _selectAll(table, orderBy = 'created_at', ascending = true) {
     let q = this.supabase.from(table).select('*');
@@ -1207,7 +1422,24 @@ _persistDeleteAsset(id) {
 
     const expenses = [];
     preventive.forEach(p => expenses.push({ date: p.lastDoneDate, amount: p.cost, assetId: p.assetId, category: 'preventivo' }));
-    corrective.forEach(c => expenses.push({ date: c.repairDate || c.failureDate, amount: c.totalCost, assetId: c.assetId, category: 'correctivo' }));
+    corrective.forEach(c => expenses.push({ date: c.repairDate, amount: c.totalCost, assetId: c.assetId, category: 'correctivo' }));
+
+    // Motor financiero F4.5: agregación con parseo estricto y fechas financieras
+    const financials = this._aggregateFinancials(preventive, corrective, now, f);
+    const {
+      monthlyPreventiveCost,
+      monthlyCorrectiveCost,
+      annualPreventiveCost,
+      annualCorrectiveCost,
+      monthCost,
+      yearCost,
+      preventiveCostPct,
+      correctiveCostPct,
+      hasCostDistribution,
+      avgPositiveMaintenanceCost,
+      topAssetsByMaintenanceCost,
+      financialCoverage
+    } = financials;
 
     const yearStart = new Date(now.getFullYear(), 0, 1);
     const correctiveYear = corrective.filter(c => new Date(c.failureDate) >= yearStart);
@@ -1224,9 +1456,7 @@ _persistDeleteAsset(id) {
 
     const totalCost = expenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
     const thisMonth = expenses.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-    const monthCost = thisMonth.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
     const thisYear  = expenses.filter(e=>new Date(e.date).getFullYear()===now.getFullYear());
-    const yearCost  = thisYear.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
 
     const totalMaint = preventive.length + corrective.length || 1;
     const preventPct = Math.round(preventive.length / totalMaint * 100);
@@ -1328,6 +1558,18 @@ _persistDeleteAsset(id) {
       totalCorrectiveThisYear: correctiveYear.length,
       assets,
       corrective,
+      // Nuevas propiedades financieras F4.5
+      monthlyPreventiveCost,
+      monthlyCorrectiveCost,
+      annualPreventiveCost,
+      annualCorrectiveCost,
+      preventiveCostPct,
+      correctiveCostPct,
+      hasCostDistribution,
+      avgPositiveMaintenanceCost,
+      topAssetsByMaintenanceCost,
+      financialCoverage
     };
+  },
   },
 };
