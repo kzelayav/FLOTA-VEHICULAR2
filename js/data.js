@@ -204,7 +204,12 @@ newId() {
   },
 
   fmtCurrency(val, currencyCode) {
-    const sym = this.getCurrencySymbol(currencyCode);
+    // Resolver moneda: prioridad al argumento explícito, fallback a configuración global
+    const resolvedCurrency = (currencyCode && typeof currencyCode === 'string' && currencyCode.trim() !== '')
+      ? currencyCode
+      : (this.getSettings?.()?.currency);
+
+    const sym = this.getCurrencySymbol(resolvedCurrency);
 
     // Valores nulos, indefinidos, vacíos o no numéricos → indicador neutro
     if (val === null || val === undefined || val === '') {
