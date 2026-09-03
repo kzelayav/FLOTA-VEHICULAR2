@@ -106,14 +106,14 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 16px;
 }
 
 .chart-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .chart-title {
@@ -131,8 +131,8 @@
   height: 220px;
 }
 
-.chart-canvas-wrapper.tall { height: 280px; }
-.chart-canvas-wrapper.sm   { height: 160px; }
+.chart-canvas-wrapper.tall { height: 240px; }
+.chart-canvas-wrapper.sm   { height: 180px; }
 
 /* Equipment ranking table */
 .ranking-table {
@@ -253,7 +253,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  padding: 12px 0;
+  padding: 10px 0;
 }
 
 .ranking-item.financial .rank-num {
@@ -270,7 +270,7 @@
 .ranking-item.financial .rank-breakdown {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 11px;
 }
 
@@ -291,7 +291,7 @@
 /* Average cost card */
 .avg-cost-card {
   text-align: center;
-  padding: 16px;
+  padding: 14px;
 }
 
 .avg-cost-value {
@@ -324,30 +324,167 @@
 .coverage-label { font-weight: 600; }
 .coverage-details { color: var(--text-muted); }
 
-/* Responsive adjustments for financial components */
-@media (max-width: 768px) {
-  .ranking-item.financial {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+/* Chart height adjustments */
+.chart-canvas-wrapper.tall { height: 240px; }
+.chart-canvas-wrapper.sm   { height: 180px; }
 
-  .ranking-item.financial .rank-info {
-    width: 100%;
-  }
-
-  .ranking-item.financial .rank-breakdown {
-    flex-wrap: wrap;
-  }
-
-  .avg-cost-value {
-    font-size: 24px;
-  }
+/* Filter bar improvements */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
-@media (max-width: 480px) {
-  .rank-num { width: 20px; height: 20px; font-size: 10px; }
-  .rank-name { font-size: 12px; }
-  .rank-breakdown { font-size: 10px; gap: 6px; }
-  .avg-cost-value { font-size: 22px; }
-  .coverage-notice { font-size: 11px; padding: 10px 12px; }
+.filter-bar .form-control {
+  min-width: 160px;
+  flex: 1;
 }
+
+/* Chart card adjustments */
+.chart-card {
+  padding: 16px;
+}
+
+.chart-card-header {
+  margin-bottom: 12px;
+}
+
+/* Rank item spacing */
+.ranking-item.financial {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.ranking-item.financial .rank-num {
+  flex-shrink: 0;
+}
+
+.ranking-item.financial .rank-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ranking-item.financial .rank-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.rank-preventive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.rank-corrective {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.rank-separator {
+  color: var(--text-faint);
+}
+
+/* Average cost card */
+.avg-cost-card {
+  text-align: center;
+  padding: 14px;
+}
+
+.avg-cost-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.avg-cost-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Coverage notice */
+.coverage-notice {
+  background: var(--warning-bg);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--warning);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coverage-icon { font-size: 14px; }
+.coverage-label { font-weight: 600; }
+.coverage-details { color: var(--text-muted); }
+
+/* Filter bar improvements */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.filter-bar .form-control {
+  min-width: 160px;
+  flex: 1;
+}
+
+/* Chart height adjustments */
+.chart-canvas-wrapper.tall { height: 240px; }
+.chart-canvas-wrapper.sm   { height: 180px; }
+
+/* Chart card adjustments */
+.chart-card {
+  padding: 16px;
+}
+
+.chart-card-header {
+  margin-bottom: 12px;
+}
+
+/* Rank item spacing */
+.ranking-item.financial {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.ranking-item.financial .rank-num {
+  flex-shrink: 0;
+}
+
+.ranking-item.financial .rank-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ranking-item.financial .rank-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.rank-preventive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.rank-corrective {
+  color: var(--danger);
+  font-weight: 600;

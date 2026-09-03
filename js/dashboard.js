@@ -38,7 +38,7 @@ const DashboardModule = {
     <div class="alert-summary-row" id="dash-alert-row"></div>
 
     <!-- Dashboard Filters -->
-    <div class="filter-bar" style="margin-bottom:20px; display:flex; gap:12px;">
+    <div class="filter-bar">
       <select class="form-control" onchange="DashboardModule.setFilter('area',this.value)">
         <option value="">Todas las áreas</option>
         ${areas.map(a=>`<option value="${a}" ${this.filter.area===a?'selected':''}>${a}</option>`).join('')}
@@ -57,7 +57,7 @@ const DashboardModule = {
     <div class="kpi-grid" id="dash-kpi-grid"></div>
 
     <!-- Charts Row 1: Trend -->
-    <div class="charts-grid mb-0" style="margin-bottom:20px; grid-template-columns: 1fr;">
+    <div class="charts-grid mb-0" style="margin-bottom:20px;">
       <div class="chart-card">
         <div class="chart-card-header">
           <div><div class="chart-title">📈 Tendencia de Gastos Mensuales (Mantenimiento)</div><div class="chart-subtitle">Últimos 12 meses</div></div>
@@ -67,7 +67,7 @@ const DashboardModule = {
     </div>
 
     <!-- Charts Row 2: Failures + Distribution -->
-    <div class="charts-grid mb-0" style="margin-bottom:20px; grid-template-columns: 1fr 1fr;">
+    <div class="charts-grid mb-0" style="margin-bottom:20px;">
       <div class="chart-card">
         <div class="chart-card-header">
           <div><div class="chart-title">⚠️ Fallas por Categoría</div></div>
@@ -83,7 +83,7 @@ const DashboardModule = {
     </div>
 
     <!-- Financial Coverage Notice -->
-    <div id="dash-coverage-notice" style="margin-bottom:20px;"></div>
+    <div id="dash-coverage-notice" style="margin-bottom:16px;"></div>
 
     <!-- Bottom Row: Financial Ranking + Average Cost -->
     <div class="grid-2" style="gap:20px">
@@ -101,8 +101,8 @@ const DashboardModule = {
       </div>
     </div>
 
-    <!-- Availability Row (unchanged) -->
-    <div class="grid-2" style="gap:20px; margin-top:20px;">
+    <!-- Availability Row -->
+    <div class="grid-2" style="gap:20px; margin-top:16px;">
       <div class="chart-card">
         <div class="chart-card-header">
           <div><div class="chart-title">📊 Disponibilidad por Equipo</div></div>
@@ -156,7 +156,7 @@ const DashboardModule = {
     </div>
     <div class="alert-summary-card asc-warning" onclick="App.navigate('alerts')">
       <div class="asc-icon">⚠️</div>
-      <div class="asc-info-text"><div class="asc-num">${proximas.length}</div><div class="asc-label">Próximas (&lt;500 km)</div></div>
+      <div class="asc-info-text"><div class="asc-num">${proximas.length}</div><div class="asc-label">Próximas (<500 km)</div></div>
     </div>
     <div class="alert-summary-card asc-info"    onclick="App.navigate('alerts')">
       <div class="asc-icon">📌</div>
