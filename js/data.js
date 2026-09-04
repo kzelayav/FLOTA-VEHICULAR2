@@ -394,6 +394,31 @@ newId() {
         totalCost
       }));
 
+    // Ranking anual por activo
+    const costByAssetYear = new Map();
+    [...prevInYear, ...corrInYear].forEach(r => {
+      if (!r.assetId) return;
+      const existing = costByAssetYear.get(r.assetId) || { preventiveCost: 0, correctiveCost: 0, totalCost: 0, assetCode: r.assetCode };
+      if (r.tipo === 'preventivo') existing.preventiveCost += r._cost.value;
+      else existing.correctiveCost += r._cost.value;
+      existing.totalCost += r._cost.value;
+      if (!existing.assetCode && r.assetCode) existing.assetCode = r.assetCode;
+      costByAssetYear.set(r.assetId, existing);
+    });
+
+    const topAssetsByAnnualMaintenanceCost = Array.from(costByAssetYear.entries())
+      .map(([id, data]) => ({ assetId: id, ...data }))
+      .filter(d => d.totalCost > 0)
+      .sort((a, b) => b.totalCost - a.totalCost || (a.assetCode || '').localeCompare(b.assetCode || ''))
+      .slice(0, 10)
+      .map(({ assetId, assetCode, preventiveCost, correctiveCost, totalCost }) => ({
+        assetId,
+        code: assetCode || '',
+        preventiveCost,
+        correctiveCost,
+        totalCost
+      }));
+
     // financialCoverage
     const evaluatedRecords = prevEvaluated.length + corrEvaluated.length;
     const includedRecords = prevEvaluated.filter(p => p._cost.isIncluded).length + corrEvaluated.filter(c => c._cost.isIncluded).length;
@@ -439,6 +464,7 @@ newId() {
       hasCostDistribution,
       avgPositiveMaintenanceCost,
       topAssetsByMaintenanceCost,
+      topAssetsByAnnualMaintenanceCost,
       financialCoverage
     };
   },
