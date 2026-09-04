@@ -159,3 +159,90 @@
 @media (max-width: 767px) {
   .grid-4 { grid-template-columns: 1fr; }
 }
+
+/* Financial ranking grid responsive */
+@media (max-width: 1199px) {
+  .financial-ranking-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Financial ranking responsive (annual) */
+@media (max-width: 1023px) {
+  .ranking-item.financial.annual {
+    grid-template-columns: auto minmax(90px, 1fr) minmax(0, 1.5fr) minmax(125px, auto);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .ranking-item.financial.annual {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "rank-num rank-name rank-cost"
+      "rank-num rank-breakdown rank-breakdown";
+    grid-template-rows: auto auto;
+    gap: 8px 12px;
+    padding: 10px 0;
+  }
+
+  .ranking-item.financial.annual .rank-num {
+    grid-area: rank-num;
+    align-self: start;
+  }
+
+  .ranking-item.financial.annual .rank-asset {
+    grid-area: rank-name;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .ranking-item.financial.annual .rank-breakdown {
+    grid-area: rank-breakdown;
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ranking-item.financial.annual .rank-total {
+    grid-area: rank-cost;
+    align-self: start;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .ranking-item.financial.annual .rank-component {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ranking-item.financial.annual .rank-component-label {
+    font-size: 10px;
+  }
+
+  .ranking-item.financial.annual .rank-component-value {
+    font-size: 11px;
+  }
+
+  .ranking-item.financial.annual .rank-total-label {
+    display: none;
+  }
+
+  .ranking-item.financial.annual .rank-cost {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 479px) {
+  .ranking-item.financial.annual .rank-breakdown {
+    gap: 12px;
+  }
+
+  .ranking-item.financial.annual .rank-component {
+    gap: 4px;
+  }
+}

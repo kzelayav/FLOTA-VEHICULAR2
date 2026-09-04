@@ -248,26 +248,134 @@
 .avail-bar  { flex: 1; }
 .avail-pct  { font-size: 12px; font-weight: 700; width: 42px; text-align: right; flex-shrink: 0; }
 
-/* Financial ranking breakdown */
-.ranking-item.financial {
+/* Financial ranking grid container */
+.financial-ranking-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+/* Financial ranking breakdown - Compact annual layout */
+.ranking-item.financial.annual {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 0.8fr) minmax(0, 1.5fr) minmax(125px, auto);
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ranking-item.financial.annual:last-child { border-bottom: none; }
+
+.ranking-item.financial.annual .rank-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ranking-item.financial.annual .rank-num.top3 {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.ranking-item.financial.annual .rank-asset {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ranking-item.financial.annual .rank-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ranking-item.financial.annual .rank-period-label {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.ranking-item.financial.annual .rank-breakdown {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.ranking-item.financial.annual .rank-component {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ranking-item.financial.annual .rank-component-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.ranking-item.financial.annual .rank-component-value {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ranking-item.financial.annual .rank-preventive .rank-component-value {
+  color: var(--success);
+}
+
+.ranking-item.financial.annual .rank-corrective .rank-component-value {
+  color: var(--danger);
+}
+
+.ranking-item.financial.annual .rank-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  min-width: 0;
+}
+
+.ranking-item.financial.annual .rank-total-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.ranking-item.financial.annual .rank-cost {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Legacy financial ranking (preserved for potential fallback) */
+.ranking-item.financial:not(.annual) {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
   padding: 10px 0;
 }
 
-.ranking-item.financial .rank-num {
+.ranking-item.financial:not(.annual) .rank-num {
   flex-shrink: 0;
 }
 
-.ranking-item.financial .rank-info {
+.ranking-item.financial:not(.annual) .rank-info {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.ranking-item.financial .rank-breakdown {
+.ranking-item.financial:not(.annual) .rank-breakdown {
   display: flex;
   align-items: center;
   gap: 6px;

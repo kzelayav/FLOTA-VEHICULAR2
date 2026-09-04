@@ -1466,6 +1466,7 @@ _persistDeleteAsset(id) {
       hasCostDistribution,
       avgPositiveMaintenanceCost,
       topAssetsByMaintenanceCost,
+      topAssetsByAnnualMaintenanceCost,
       financialCoverage
     } = financials;
 
@@ -1596,6 +1597,7 @@ _persistDeleteAsset(id) {
       hasCostDistribution,
       avgPositiveMaintenanceCost,
       topAssetsByMaintenanceCost,
+      topAssetsByAnnualMaintenanceCost,
       financialCoverage
     };
   },

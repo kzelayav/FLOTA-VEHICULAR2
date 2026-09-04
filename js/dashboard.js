@@ -1,4 +1,4 @@
-/* ====================================================
+﻿﻿/* ====================================================
    DASHBOARD MODULE — KPIs + Charts
    ==================================================== */
 
@@ -6,14 +6,18 @@ const DashboardModule = {
   charts: {},
   filter: { area:'', localidad:'', departamento:'' },
 
-  _escapeHtml(text) {
+_escapeHtml(text) {
     if (!text) return '';
-    return String(text)
-      .replace(/&/g, '&')
-      .replace(/</g, '<')
-      .replace(/>/g, '>')
-      .replace(/"/g, '"')
-      .replace(/'/g, '&#039;');
+
+    const entities = {
+      '&': '\u0026amp;',
+      '<': '\u0026lt;',
+      '>': '\u0026gt;',
+      '"': '\u0026quot;',
+      "'": '\u0026#039;'
+    };
+
+    return String(text).replace(/[&<>"']/g, char => entities[char]);
   },
 
   render() {
@@ -86,10 +90,10 @@ const DashboardModule = {
     <div id="dash-coverage-notice" style="margin-bottom:16px;"></div>
 
     <!-- Bottom Row: Financial Ranking + Average Cost -->
-    <div class="grid-2" style="gap:20px">
+    <div class="grid-2 financial-ranking-grid">
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">🏆 Activos con Mayor Costo de Mantenimiento</div><div class="chart-subtitle">Mes actual</div></div>
+          <div><div class="chart-title">🏆 Activos con Mayor Costo Anual de Mantenimiento</div><div class="chart-subtitle">Año actual</div></div>
         </div>
         <div id="dash-ranking"></div>
       </div>
@@ -290,20 +294,29 @@ const DashboardModule = {
   renderRanking(kpis) {
     const el = document.getElementById('dash-ranking');
     if (!el) return;
-    const ranking = kpis.topAssetsByMaintenanceCost || [];
-    if (!ranking.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>Sin activos con costo de mantenimiento este mes</h3></div>`; return; }
-    el.innerHTML = ranking.slice(0,10).map((item,i)=>`
-    <div class="ranking-item financial">
+    const ranking = kpis.topAssetsByAnnualMaintenanceCost || [];
+    if (!ranking.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>Sin activos con costo de mantenimiento este año</h3></div>`; return; }
+    el.innerHTML = ranking.map((item,i)=>`
+    <div class="ranking-item financial annual">
       <div class="rank-num ${i<3?'top3':''}">${i+1}</div>
-      <div class="rank-info">
+      <div class="rank-asset">
         <div class="rank-name">${this._escapeHtml(item.code || 'Activo sin código')}</div>
-        <div class="rank-breakdown">
-          <span class="rank-preventive">${DB.fmtCurrency(item.preventiveCost)}</span>
-          <span class="rank-separator">·</span>
-          <span class="rank-corrective">${DB.fmtCurrency(item.correctiveCost)}</span>
-        </div>
+        <div class="rank-period-label">Costo anual</div>
       </div>
-      <div class="rank-cost">${DB.fmtCurrency(item.totalCost)}</div>
+      <div class="rank-breakdown">
+        <span class="rank-component rank-preventive">
+          <span class="rank-component-label">Preventivo</span>
+          <span class="rank-component-value">${DB.fmtCurrency(item.preventiveCost)}</span>
+        </span>
+        <span class="rank-component rank-corrective">
+          <span class="rank-component-label">Correctivo</span>
+          <span class="rank-component-value">${DB.fmtCurrency(item.correctiveCost)}</span>
+        </span>
+      </div>
+      <div class="rank-total">
+        <span class="rank-total-label">Total anual</span>
+        <span class="rank-cost">${DB.fmtCurrency(item.totalCost)}</span>
+      </div>
     </div>`).join('');
   },
 
