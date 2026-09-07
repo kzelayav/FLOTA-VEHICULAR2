@@ -225,7 +225,7 @@ newId() {
 
     const sign = num < 0 ? '-' : '';
     const abs = Math.abs(num);
-    return `${sign}${sym} ${abs.toLocaleString('es', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    return `${sign}${sym} ${abs.toLocaleString('es-NI', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
   },
 
   /* â”€â”€ Parser seguro de fechas YYYY-MM-DD sin desplazamiento UTC â”€â”€ */
