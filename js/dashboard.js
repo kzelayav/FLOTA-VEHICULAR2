@@ -1,4 +1,4 @@
-﻿﻿/* ====================================================
+﻿/* ====================================================
    DASHBOARD MODULE — KPIs + Charts
    ==================================================== */
 
@@ -211,7 +211,7 @@ _escapeHtml(text) {
           { label: 'Total', data: mc.map(m => m.total || 0), backgroundColor: 'rgba(59,130,246,0.6)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 4 },
         ],
       },
-      options: { ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false, plugins: { ...CHART_DEFAULTS.plugins, tooltip: { callbacks: { label: ctx => `${cur} ${ctx.parsed.y?.toLocaleString('es')}` } } } },
+      options: { ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false, plugins: { ...CHART_DEFAULTS.plugins, tooltip: { callbacks: { label: ctx => `${cur} ${ctx.parsed.y?.toLocaleString('es-NI')}` } } } },
     });
 
     /* Failures by category */
@@ -301,7 +301,6 @@ _escapeHtml(text) {
       <div class="rank-num ${i<3?'top3':''}">${i+1}</div>
       <div class="rank-asset">
         <div class="rank-name">${this._escapeHtml(item.code || 'Activo sin código')}</div>
-        <div class="rank-period-label">Costo anual</div>
       </div>
       <div class="rank-breakdown">
         <span class="rank-component rank-preventive">
