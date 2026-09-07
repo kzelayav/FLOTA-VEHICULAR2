@@ -453,7 +453,6 @@ newId() {
     };
 
     // Monthly financial trend (12 periods)
-    const now = new Date();
     const monthlyFinancialTrend = (() => {
       const periods = [];
       for (let i = 11; i >= 0; i--) {
