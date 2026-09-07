@@ -452,6 +452,60 @@ newId() {
       missingAssetIdForRanking
     };
 
+    // Monthly financial trend (12 periods)
+    const now = new Date();
+    const monthlyFinancialTrend = (() => {
+      const periods = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')};
+        const label = d.toLocaleDateString('es-NI', { month: 'short', year: '2-digit' });
+        periods.push({
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          periodKey,
+          label,
+          preventiveCost: 0,
+          correctiveCost: 0,
+          totalCost: 0
+        });
+      }
+      return periods;
+    })();
+
+    const costByPeriod = new Map();
+    monthlyFinancialTrend.forEach(p => costByPeriod.set(p.periodKey, p));
+
+    // Acumular preventivos
+    prevEvaluated
+      .filter(p => p._cost.isIncluded && p.lastDoneDate)
+      .forEach(p => {
+        const d = this._parseLocalDate(p.lastDoneDate);
+        if (!d) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const entry = costByPeriod.get(key);
+        if (entry) {
+          entry.preventiveCost += p._cost.value;
+          entry.totalCost += p._cost.value;
+        }
+      });
+
+    // Acumular correctivos
+    corrEvaluated
+      .filter(c => c._cost.isIncluded && c.repairDate)
+      .forEach(c => {
+        const d = this._parseLocalDate(c.repairDate);
+        if (!d) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const entry = costByPeriod.get(key);
+        if (entry) {
+          entry.correctiveCost += c._cost.value;
+          entry.totalCost += c._cost.value;
+        }
+      });
+
+    const monthlyFinancialTrendResult = Array.from(costByPeriod.values());
+
     return {
       monthlyPreventiveCost,
       monthlyCorrectiveCost,
@@ -465,6 +519,7 @@ newId() {
       avgPositiveMaintenanceCost,
       topAssetsByMaintenanceCost,
       topAssetsByAnnualMaintenanceCost,
+      monthlyFinancialTrend: monthlyFinancialTrendResult,
       financialCoverage
     };
   },
@@ -1467,6 +1522,7 @@ _persistDeleteAsset(id) {
       avgPositiveMaintenanceCost,
       topAssetsByMaintenanceCost,
       topAssetsByAnnualMaintenanceCost,
+      monthlyFinancialTrend,
       financialCoverage
     } = financials;
 
@@ -1598,6 +1654,7 @@ _persistDeleteAsset(id) {
       avgPositiveMaintenanceCost,
       topAssetsByMaintenanceCost,
       topAssetsByAnnualMaintenanceCost,
+      monthlyFinancialTrend,
       financialCoverage
     };
   },
