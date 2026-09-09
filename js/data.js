@@ -457,7 +457,7 @@ newId() {
       const periods = [];
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')};
+        const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         const label = d.toLocaleDateString('es-NI', { month: 'short', year: '2-digit' });
         periods.push({
           year: d.getFullYear(),
