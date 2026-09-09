@@ -64,7 +64,7 @@ _escapeHtml(text) {
     <div class="charts-grid mb-0" style="margin-bottom:20px;">
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">📈 Tendencia de Gastos Mensuales (Mantenimiento)</div><div class="chart-subtitle">Últimos 12 meses</div></div>
+          <div><div class="chart-title">📈 Tendencia Financiera de Mantenimiento</div><div class="chart-subtitle">Últimos 12 meses</div></div>
         </div>
         <div class="chart-canvas-wrapper tall"><canvas id="chart-monthly"></canvas></div>
       </div>
@@ -199,20 +199,113 @@ _escapeHtml(text) {
       scales: { x: { ticks:{color:'#64748b'}, grid:{color:'rgba(255,255,255,0.04)'} }, y: { ticks:{color:'#64748b'}, grid:{color:'rgba(255,255,255,0.04)'} } },
     };
 
-    /* Monthly trend (legacy) */
-    const cur = DB.getCurrencySymbol(DB.getSettings().currency);
-    const mc = kpis.monthlyCosts || [];
+    /* Monthly financial trend (new centralized series) */
+    const trend = Array.isArray(kpis.monthlyFinancialTrend) ? kpis.monthlyFinancialTrend : [];
+    const hasFinancialTrendData = trend.some(item => Number(item.totalCost) > 0);
     const ctx1 = document.getElementById('chart-monthly');
-    if (ctx1) this.charts.monthly = new Chart(ctx1, {
-      type: 'bar',
-      data: {
-        labels: mc.map(m => m.label),
-        datasets: [
-          { label: 'Total', data: mc.map(m => m.total || 0), backgroundColor: 'rgba(59,130,246,0.6)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 4 },
-        ],
-      },
-      options: { ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: false, plugins: { ...CHART_DEFAULTS.plugins, tooltip: { callbacks: { label: ctx => `${cur} ${ctx.parsed.y?.toLocaleString('es-NI')}` } } } },
-    });
+
+    // Destroy existing chart instance if exists
+    if (this.charts.monthly) {
+      this.charts.monthly.destroy();
+      this.charts.monthly = null;
+    }
+
+    if (ctx1) {
+      if (!hasFinancialTrendData) {
+        // Empty state: show message instead of chart
+        ctx1.style.display = 'none';
+        const container = ctx1.parentElement;
+        if (container && !container.querySelector('.empty-trend-state')) {
+          const emptyDiv = document.createElement('div');
+          emptyDiv.className = 'empty-trend-state';
+          emptyDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:220px;color:#64748b;text-align:center;padding:20px;';
+          emptyDiv.innerHTML = '<div class="empty-icon" style="font-size:48px;margin-bottom:12px;">📊</div><h3 style="margin:0;font-size:14px;color:#94a3b8;">Sin costos de mantenimiento en los últimos 12 meses</h3>';
+          container.appendChild(emptyDiv);
+        }
+      } else {
+        // Show canvas and create stacked bar chart
+        ctx1.style.display = 'block';
+        const existingEmpty = ctx1.parentElement?.querySelector('.empty-trend-state');
+        if (existingEmpty) existingEmpty.remove();
+
+        const labels = trend.map(item => item.label || '');
+        const preventiveData = trend.map(item => Number(item.preventiveCost) || 0);
+        const correctiveData = trend.map(item => Number(item.correctiveCost) || 0);
+        const cur = DB.getCurrencySymbol(DB.getSettings().currency);
+
+        this.charts.monthly = new Chart(ctx1, {
+          type: 'bar',
+          data: {
+            labels: trend.map(item => item.label || ''),
+            datasets: [
+              {
+                label: 'Preventivo',
+                data: trend.map(item => Number(item.preventiveCost) || 0),
+                backgroundColor: 'rgba(16,185,129,0.7)',
+                borderColor: '#10b981',
+                borderWidth: 1,
+                borderRadius: 4,
+              },
+              {
+                label: 'Correctivo',
+                data: trend.map(item => Number(item.correctiveCost) || 0),
+                backgroundColor: 'rgba(239,68,68,0.7)',
+                borderColor: '#ef4444',
+                borderWidth: 1,
+                borderRadius: 4,
+              },
+            ],
+          },
+          options: {
+            ...CHART_DEFAULTS,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              ...CHART_DEFAULTS.plugins,
+              tooltip: {
+                callbacks: {
+                  title: ctx => ctx[0]?.label || '',
+                  label: ctx => {
+                    const item = trend[ctx.dataIndex];
+                    if (!item) return '';
+                    const label = ctx.dataset.label;
+                    const value = label === 'Preventivo'
+                      ? Number(item.preventiveCost) || 0
+                      : Number(item.correctiveCost) || 0;
+                    return `${label}: ${DB.fmtCurrency(value)}`;
+                  },
+                  footer: ctx => {
+                    const item = trend[ctx[0].dataIndex];
+                    if (!item) return '';
+                    return `Total: ${DB.fmtCurrency(Number(item.totalCost) || 0)}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                stacked: true,
+                ticks: { color: '#64748b' },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+              },
+              y: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: {
+                  color: '#64748b',
+                  callback: value => {
+                    const abs = Math.abs(value);
+                    if (abs >= 1000000) return `${(value/1000000).toFixed(1)}M`;
+                    if (abs >= 1000) return `${(value/1000).toFixed(1)}K`;
+                    return value.toLocaleString('es-NI');
+                  },
+                },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+              },
+            },
+          });
+      }
+    }
 
     /* Failures by category */
     const catColors = ['#3b82f6','#f59e0b','#10b981','#ef4444','#a855f7','#06b6d4','#84cc16','#f97316','#ec4899','#14b8a6'];
