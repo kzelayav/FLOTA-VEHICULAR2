@@ -1,23 +1,23 @@
 /* ====================================================
-   DATA LAYER â€” Supabase CRUD + Cache + Migración LocalStorage
+   DATA LAYER ├óÔé¼ÔÇØ Supabase CRUD + Cache + Migraci├│n LocalStorage
    ------------------------------------------------
    La capa de datos mantiene la MISMA API que antes
    (DB.getAssets(), DB.addAsset(), etc.) para no romper
-   los módulos existentes.
+   los m├│dulos existentes.
 
    Arquitectura:
-   - Todas las lecturas usan una caché en memoria que se
+   - Todas las lecturas usan una cach├® en memoria que se
      llena desde Supabase durante `DB.bootstrap()`.
-   - Todas las escrituras actualizan la caché al instante
-     y se sincronizan con Supabase de forma asíncrona.
-   - Si Supabase no está configurado o falla, se usa
+   - Todas las escrituras actualizan la cach├® al instante
+     y se sincronizan con Supabase de forma as├¡ncrona.
+   - Si Supabase no est├í configurado o falla, se usa
      LocalStorage como respaldo (funcionalidad original).
-   - La migración de datos desde LocalStorage hacia
-     Supabase se ejecuta automáticamente en `bootstrap()`.
+   - La migraci├│n de datos desde LocalStorage hacia
+     Supabase se ejecuta autom├íticamente en `bootstrap()`.
    ==================================================== */
 
 const DB = {
-  /* â”€â”€ Keys (compatibilidad con el código anterior) â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Keys (compatibilidad con el c├│digo anterior) ├óÔÇØÔé¼├óÔÇØÔé¼ */
   KEYS: {
     assets:     'fleet_assets',
     preventive: 'fleet_preventive',
@@ -32,7 +32,7 @@ const DB = {
     alerts:     'fleet_alerts',
   },
 
-  /* â”€â”€ Mapa colección â†’ tabla Supabase â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Mapa colecci├│n ├óÔÇáÔÇÖ tabla Supabase ├óÔÇØÔé¼├óÔÇØÔé¼ */
   TABLES: {
     assets:     'activos',
     preventive: 'mantenimientos',
@@ -46,16 +46,16 @@ const DB = {
     settings:   'configuracion',
   },
 
-  /* â”€â”€ Estado interno â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Estado interno ├óÔÇØÔé¼├óÔÇØÔé¼ */
   supabase: null,
   mode: 'localstorage',          // 'localstorage' | 'supabase'
   _ready: null,
   _lastAlertSig: '',
   _cache: null,
-  _queue: new Map(),  // Cola Promise por colección: _queue[colección] = Promise
+  _queue: new Map(),  // Cola Promise por colecci├│n: _queue[colecci├│n] = Promise
   _recordQueues: new Map(),  // Cola Promise por registro: _recordQueues['collection:id'] = Promise
 
-  /* â”€â”€ Helpers genéricos (compatibilidad) â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Helpers gen├®ricos (compatibilidad) ├óÔÇØÔé¼├óÔÇØÔé¼ */
   get(key) {
     const ck = this._keyToCache(key);
     if (ck) return this._cache[ck] || [];
@@ -74,18 +74,18 @@ const DB = {
     return def;
   },
 
-  /* â”€â”€ ID generator â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ ID generator ├óÔÇØÔé¼├óÔÇØÔé¼ */
 newId() {
     return crypto.randomUUID();
   },
 
-  /* â”€â”€ Cola Promise por colección â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Cola Promise por colecci├│n ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _enqueue(coll, task) {
     const queue = this._queue.get(coll) || Promise.resolve();
     const next = queue.then(
       () => task(),
       (err) => {
-        // Absorber el error anterior para permitir la siguiente operación
+        // Absorber el error anterior para permitir la siguiente operaci├│n
         // El error original ya fue propagado a su caller
         return task();
       }
@@ -94,7 +94,7 @@ newId() {
     return next;
   },
 
-  /* â”€â”€ Cola Promise por registro (serialización completa por activo) â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Cola Promise por registro (serializaci├│n completa por activo) ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _enqueueRecord(collection, recordId, task) {
     const key = collection + ':' + recordId;
     const prevQueue = this._recordQueues.get(key) || Promise.resolve();
@@ -134,7 +134,7 @@ newId() {
   },
 
 /* ====================================================
-     BOOTSTRAP — inicializa Supabase, migra y llena caché
+     BOOTSTRAP ÔÇö inicializa Supabase, migra y llena cach├®
      ==================================================== */
   async bootstrap(opts = {}) {
     const { loadData = true } = opts;
@@ -173,7 +173,7 @@ newId() {
     return this._ready;
   },
 
-  /* â”€â”€ Configura el cliente de Supabase â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Configura el cliente de Supabase ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _setupSupabase() {
     const cfg = window.SUPABASE_CONFIG || {};
     if (!cfg.url || !cfg.anonKey || !window.supabase) return;
@@ -185,18 +185,18 @@ newId() {
     }
   },
 
-  /* â”€â”€ Ejecuta una operación asíncrona con manejo de errores â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Ejecuta una operaci├│n as├¡ncrona con manejo de errores ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _async(tag, fn) {
     if (this.mode !== 'supabase' || !this.supabase) return Promise.resolve();
     return Promise.resolve()
       .then(fn)
       .catch(err => {
-        console.error(`[DB] ${tag} â†’`, err);
+        console.error(`[DB] ${tag} ├óÔÇáÔÇÖ`, err);
         throw err; // Propagar error al caller
       });
   },
 
-  /* â”€â”€ Helper central de moneda â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Helper central de moneda ├óÔÇØÔé¼├óÔÇØÔé¼ */
   getCurrencySymbol(currencyCode) {
     if (currencyCode === 'NIO') return 'C$';
     if (currencyCode === 'Q') return 'Q';
@@ -204,23 +204,23 @@ newId() {
   },
 
   fmtCurrency(val, currencyCode) {
-    // Resolver moneda: prioridad al argumento explícito, fallback a configuración global
+    // Resolver moneda: prioridad al argumento expl├¡cito, fallback a configuraci├│n global
     const resolvedCurrency = (currencyCode && typeof currencyCode === 'string' && currencyCode.trim() !== '')
       ? currencyCode
       : (this.getSettings?.()?.currency);
 
     const sym = this.getCurrencySymbol(resolvedCurrency);
 
-    // Valores nulos, indefinidos, vacíos o no numéricos → indicador neutro
+    // Valores nulos, indefinidos, vac├¡os o no num├®ricos ÔåÆ indicador neutro
     if (val === null || val === undefined || val === '') {
-      return `${sym} —`;
+      return `${sym} ÔÇö`;
     }
 
     const num = parseFloat(val);
 
-    // NaN, Infinity, -Infinity, o valor no numérico → indicador neutro
+    // NaN, Infinity, -Infinity, o valor no num├®rico ÔåÆ indicador neutro
     if (!Number.isFinite(num) || isNaN(num)) {
-      return `${sym} —`;
+      return `${sym} ÔÇö`;
     }
 
     const sign = num < 0 ? '-' : '';
@@ -228,7 +228,7 @@ newId() {
     return `${sign}${sym} ${abs.toLocaleString('es-NI', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
   },
 
-  /* â”€â”€ Parser seguro de fechas YYYY-MM-DD sin desplazamiento UTC â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Parser seguro de fechas YYYY-MM-DD sin desplazamiento UTC ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _parseLocalDate(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return null;
     const trimmed = dateStr.trim();
@@ -242,7 +242,7 @@ newId() {
     return d;
   },
 
-  /* â”€â”€ Parser estricto de costos â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Parser estricto de costos ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _parseCost(val) {
     if (val === null || val === undefined || val === '' || (typeof val === 'string' && val.trim() === '')) {
       return { valid: false, value: null, reason: 'missing' };
@@ -250,7 +250,7 @@ newId() {
     if (typeof val === 'string') {
       const trimmed = val.trim();
       if (trimmed === '') return { valid: false, value: null, reason: 'missing' };
-      // Verificar que la cadena es numérica limpia (sin caracteres extra)
+      // Verificar que la cadena es num├®rica limpia (sin caracteres extra)
       if (!/^[+-]?\d+(\.\d+)?$/.test(trimmed)) {
         return { valid: false, value: null, reason: 'invalid' };
       }
@@ -264,7 +264,7 @@ newId() {
     return { valid: true, value: num, reason: 'positive' };
   },
 
-  /* â”€â”€ Evaluador de costo por registro â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Evaluador de costo por registro ├óÔÇØÔé¼├óÔÇØÔé¼ */
   getMaintenanceCost(record) {
     if (!record || !record.tipo) {
       return { value: null, status: 'invalid_type', maintenanceType: 'unknown', isIncluded: false, issue: 'Tipo de mantenimiento no definido' };
@@ -309,13 +309,93 @@ newId() {
     return { value: null, status: 'invalid_type', maintenanceType: record.tipo, isIncluded: false, issue: 'Tipo desconocido: ' + record.tipo };
   },
 
-  /* â”€â”€ Agregador financiero central â”€â”€ */
+  // NEW AGGREGATE FINANCIALS FUNCTION - to be inserted into js/data.js
+
+/* ── Agregador financiero central ── */
   _aggregateFinancials(preventive, corrective, now, filter) {
+    // Normalizar filtro temporal
+    const rawMonth = filter?.periodMonth;
+    const rawYear = filter?.periodYear;
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+
+    let periodMonth = rawMonth;
+    let periodYear = rawYear;
+
+    // Normalizar month: 1-12, "all", null/undefined -> currentMonth
+    if (periodMonth === null || periodMonth === undefined || periodMonth === '') {
+      periodMonth = currentMonth;
+    } else if (typeof periodMonth === 'string') {
+      if (periodMonth === 'all') {
+        periodMonth = 'all';
+      } else {
+        const parsed = parseInt(periodMonth, 10);
+        periodMonth = (parsed >= 1 && parsed <= 12) ? parsed : currentMonth;
+      }
+    } else if (typeof periodMonth === 'number') {
+      periodMonth = (periodMonth >= 1 && periodMonth <= 12) ? periodMonth : currentMonth;
+    } else {
+      periodMonth = currentMonth;
+    }
+
+    // Normalizar year: 4 digitos, null/undefined -> currentYear
+    if (periodYear === null || periodYear === undefined || periodYear === '') {
+      periodYear = currentYear;
+    } else if (typeof periodYear === 'string') {
+      const parsed = parseInt(periodYear, 10);
+      periodYear = (parsed >= 1000 && parsed <= 9999) ? parsed : currentYear;
+    } else if (typeof periodYear === 'number') {
+      periodYear = (periodYear >= 1000 && periodYear <= 9999) ? periodYear : currentYear;
+    } else {
+      periodYear = currentYear;
+    }
+
+    // No anos futuros
+    if (periodYear > currentYear) {
+      periodYear = currentYear;
+    }
+
+    // Determinar modo y mes fin de tendencia
+    let mode, trendEndMonth, trendEndYear;
+    const isFuture = (periodYear === currentYear && typeof periodMonth === 'number' && periodMonth > currentMonth);
+
+    if (periodMonth === 'all') {
+      mode = 'year';
+      trendEndMonth = (periodYear === currentYear) ? currentMonth : 12;
+      trendEndYear = periodYear;
+    } else {
+      mode = 'month';
+      trendEndMonth = periodMonth;
+      trendEndYear = periodYear;
+    }
+
+    // Etiquetas del periodo
+    let label, shortLabel;
+    if (mode === 'month') {
+      const d = new Date(periodYear, periodMonth - 1, 1);
+      label = d.toLocaleDateString('es-NI', { month: 'long', year: 'numeric' });
+      shortLabel = d.toLocaleDateString('es-NI', { month: 'short', year: '2-digit' });
+    } else {
+      label = 'A\u00f1o ' + periodYear;
+      shortLabel = String(periodYear);
+    }
+
+    const selectedPeriod = {
+      month: periodMonth,
+      year: periodYear,
+      mode: mode,
+      label: label,
+      shortLabel: shortLabel,
+      trendEndMonth: trendEndMonth,
+      trendEndYear: trendEndYear,
+      isFuture: isFuture
+    };
+
     // Evaluar cada registro
     const prevEvaluated = preventive.map(p => ({ ...p, _cost: this.getMaintenanceCost(p) }));
     const corrEvaluated = corrective.map(c => ({ ...c, _cost: this.getMaintenanceCost(c) }));
 
-    // Filtrar por fecha financiera (mes actual / año actual)
+    // Filtrar por fecha financiera (mes actual / ano actual) - PARA KPIs LEGACY
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     const yearStart = new Date(now.getFullYear(), 0, 1);
@@ -333,15 +413,15 @@ newId() {
       return d >= yearStart && d <= new Date(now.getFullYear(), 11, 31, 23, 59, 59);
     };
 
-    // Evaluar preventivos
+    // Evaluar preventivos LEGACY
     const prevInMonth = prevEvaluated.filter(p => p._cost.isIncluded && inCurrentMonth(p.lastDoneDate));
     const prevInYear = prevEvaluated.filter(p => p._cost.isIncluded && inCurrentYear(p.lastDoneDate));
 
-    // Evaluar correctivos (fecha financiera = repairDate)
+    // Evaluar correctivos LEGACY (fecha financiera = repairDate)
     const corrInMonth = corrEvaluated.filter(c => c._cost.isIncluded && inCurrentMonth(c.repairDate));
     const corrInYear = corrEvaluated.filter(c => c._cost.isIncluded && inCurrentYear(c.repairDate));
 
-    // Costos
+    // Costos LEGACY
     const monthlyPreventiveCost = prevInMonth.reduce((s, p) => s + p._cost.value, 0);
     const monthlyCorrectiveCost = corrInMonth.reduce((s, c) => s + c._cost.value, 0);
     const monthCost = monthlyPreventiveCost + monthlyCorrectiveCost;
@@ -350,7 +430,7 @@ newId() {
     const annualCorrectiveCost = corrInYear.reduce((s, c) => s + c._cost.value, 0);
     const yearCost = annualPreventiveCost + annualCorrectiveCost;
 
-    // Distribución por costo
+    // Distribucion por costo LEGACY
     let preventiveCostPct = 0, correctiveCostPct = 0, hasCostDistribution = false;
     const monthCostTotal = monthCost;
     if (monthCostTotal > 0) {
@@ -359,7 +439,7 @@ newId() {
       hasCostDistribution = true;
     }
 
-    // Promedio positivo (solo value > 0)
+    // Promedio positivo LEGACY (solo value > 0)
     const positiveCostRecords = [
       ...prevEvaluated.filter(p => p._cost.isIncluded && p._cost.value > 0 && inCurrentMonth(p.lastDoneDate)),
       ...corrEvaluated.filter(c => c._cost.isIncluded && c._cost.value > 0 && inCurrentMonth(c.repairDate))
@@ -368,7 +448,7 @@ newId() {
       ? positiveCostRecords.reduce((s, r) => s + r._cost.value, 0) / positiveCostRecords.length
       : null;
 
-    // Ranking mensual por activo
+    // Ranking mensual por activo LEGACY
     const costByAsset = new Map();
     [...prevEvaluated.filter(p => p._cost.isIncluded && inCurrentMonth(p.lastDoneDate)),
      ...corrEvaluated.filter(c => c._cost.isIncluded && inCurrentMonth(c.repairDate))]
@@ -394,7 +474,7 @@ newId() {
         totalCost
       }));
 
-    // Ranking anual por activo
+    // Ranking anual por activo LEGACY
     const costByAssetYear = new Map();
     [...prevInYear, ...corrInYear].forEach(r => {
       if (!r.assetId) return;
@@ -419,7 +499,7 @@ newId() {
         totalCost
       }));
 
-    // financialCoverage
+    // financialCoverage LEGACY
     const evaluatedRecords = prevEvaluated.length + corrEvaluated.length;
     const includedRecords = prevEvaluated.filter(p => p._cost.isIncluded).length + corrEvaluated.filter(c => c._cost.isIncluded).length;
     const positiveCostCount = prevEvaluated.filter(p => p._cost.status === 'valid_positive').length + corrEvaluated.filter(c => c._cost.status === 'valid_positive').length;
@@ -452,12 +532,12 @@ newId() {
       missingAssetIdForRanking
     };
 
-    // Monthly financial trend (12 periods)
+    // Monthly financial trend LEGACY (12 periods until current month)
     const monthlyFinancialTrend = (() => {
       const periods = [];
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const periodKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         const label = d.toLocaleDateString('es-NI', { month: 'short', year: '2-digit' });
         periods.push({
           year: d.getFullYear(),
@@ -475,13 +555,13 @@ newId() {
     const costByPeriod = new Map();
     monthlyFinancialTrend.forEach(p => costByPeriod.set(p.periodKey, p));
 
-    // Acumular preventivos
+    // Acumular preventivos LEGACY
     prevEvaluated
       .filter(p => p._cost.isIncluded && p.lastDoneDate)
       .forEach(p => {
         const d = this._parseLocalDate(p.lastDoneDate);
         if (!d) return;
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         const entry = costByPeriod.get(key);
         if (entry) {
           entry.preventiveCost += p._cost.value;
@@ -489,13 +569,13 @@ newId() {
         }
       });
 
-    // Acumular correctivos
+    // Acumular correctivos LEGACY
     corrEvaluated
       .filter(c => c._cost.isIncluded && c.repairDate)
       .forEach(c => {
         const d = this._parseLocalDate(c.repairDate);
         if (!d) return;
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         const entry = costByPeriod.get(key);
         if (entry) {
           entry.correctiveCost += c._cost.value;
@@ -504,6 +584,166 @@ newId() {
       });
 
     const monthlyFinancialTrendResult = Array.from(costByPeriod.values());
+
+    // ============================================================
+    // NUEVO: CONTRATO FINANCIERO DEL PERIODO SELECCIONADO
+    // ============================================================
+
+    // Helper para verificar si un registro cae en el periodo seleccionado
+    const inSelectedPeriod = (dateStr) => {
+      if (!dateStr) return false;
+      const d = this._parseLocalDate(dateStr);
+      if (!d) return false;
+      const recordYear = d.getFullYear();
+      const recordMonth = d.getMonth() + 1; // 1-12
+      if (recordYear !== periodYear) return false;
+      if (mode === 'month') {
+        return recordMonth === periodMonth;
+      }
+      return true; // mode === 'year'
+    };
+
+    // Colecciones del periodo seleccionado
+    const selectedPreventiveRecords = prevEvaluated.filter(p => p._cost.isIncluded && inSelectedPeriod(p.lastDoneDate));
+    const selectedCorrectiveRecords = corrEvaluated.filter(c => c._cost.isIncluded && inSelectedPeriod(c.repairDate));
+
+    // Costos del periodo
+    const preventiveCost = selectedPreventiveRecords.reduce((s, p) => s + p._cost.value, 0);
+    const correctiveCost = selectedCorrectiveRecords.reduce((s, c) => s + c._cost.value, 0);
+    const totalCost = preventiveCost + correctiveCost;
+
+    // Promedio positivo del periodo
+    const selectedPositiveRecords = [
+      ...selectedPreventiveRecords.filter(p => p._cost.value > 0),
+      ...selectedCorrectiveRecords.filter(c => c._cost.value > 0)
+    ];
+    const positiveCostAverage = selectedPositiveRecords.length > 0
+      ? selectedPositiveRecords.reduce((s, r) => s + r._cost.value, 0) / selectedPositiveRecords.length
+      : 0;
+
+    // Distribucion del periodo
+    let preventivePct = 0, correctivePct = 0;
+    if (totalCost > 0) {
+      preventivePct = (preventiveCost / totalCost) * 100;
+      correctivePct = (correctiveCost / totalCost) * 100;
+    }
+    const costDistribution = {
+      preventiveCost,
+      correctiveCost,
+      preventivePct,
+      correctivePct,
+      hasData: totalCost > 0
+    };
+
+    // Ranking del periodo (top 10 activos)
+    const costByAssetSelected = new Map();
+    [...selectedPreventiveRecords, ...selectedCorrectiveRecords].forEach(r => {
+      if (!r.assetId) return;
+      const existing = costByAssetSelected.get(r.assetId) || { preventiveCost: 0, correctiveCost: 0, totalCost: 0, assetCode: r.assetCode };
+      if (r.tipo === 'preventivo') existing.preventiveCost += r._cost.value;
+      else existing.correctiveCost += r._cost.value;
+      existing.totalCost += r._cost.value;
+      if (!existing.assetCode && r.assetCode) existing.assetCode = r.assetCode;
+      costByAssetSelected.set(r.assetId, existing);
+    });
+
+    const topAssets = Array.from(costByAssetSelected.entries())
+      .map(([id, data]) => ({ assetId: id, ...data }))
+      .filter(d => d.totalCost > 0)
+      .sort((a, b) => b.totalCost - a.totalCost || (a.assetCode || '').localeCompare(b.assetCode || ''))
+      .slice(0, 10)
+      .map(({ assetId, assetCode, preventiveCost, correctiveCost, totalCost }) => ({
+        assetId,
+        code: assetCode || '',
+        preventiveCost,
+        correctiveCost,
+        totalCost
+      }));
+
+    // Tendencia financiera del periodo (12 periodos terminando en trendEndMonth/trendEndYear)
+    const financialTrend = (() => {
+      const periods = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(trendEndYear, trendEndMonth - 1 - i, 1);
+        const periodKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        const label = d.toLocaleDateString('es-NI', { month: 'short', year: '2-digit' });
+        periods.push({
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          periodKey,
+          label,
+          preventiveCost: 0,
+          correctiveCost: 0,
+          totalCost: 0
+        });
+      }
+      return periods;
+    })();
+
+    const trendCostByPeriod = new Map();
+    financialTrend.forEach(p => trendCostByPeriod.set(p.periodKey, p));
+
+    // Acumular preventivos en la tendencia
+    prevEvaluated
+      .filter(p => p._cost.isIncluded && p.lastDoneDate)
+      .forEach(p => {
+        const d = this._parseLocalDate(p.lastDoneDate);
+        if (!d) return;
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        const entry = trendCostByPeriod.get(key);
+        if (entry) {
+          entry.preventiveCost += p._cost.value;
+          entry.totalCost += p._cost.value;
+        }
+      });
+
+    // Acumular correctivos en la tendencia
+    corrEvaluated
+      .filter(c => c._cost.isIncluded && c.repairDate)
+      .forEach(c => {
+        const d = this._parseLocalDate(c.repairDate);
+        if (!d) return;
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        const entry = trendCostByPeriod.get(key);
+        if (entry) {
+          entry.correctiveCost += c._cost.value;
+          entry.totalCost += c._cost.value;
+        }
+      });
+
+    const financialTrendResult = Array.from(trendCostByPeriod.values());
+
+    // Anos financieros disponibles (de preventivos + correctivos SIN filtrar por organizacion)
+    const allPreventive = this.getPreventive();
+    const allCorrective = this.getCorrective();
+    const yearSet = new Set();
+    allPreventive.forEach(p => {
+      const d = this._parseLocalDate(p.lastDoneDate);
+      if (d) yearSet.add(d.getFullYear());
+    });
+    allCorrective.forEach(c => {
+      const d = this._parseLocalDate(c.repairDate);
+      if (d) yearSet.add(d.getFullYear());
+    });
+    yearSet.add(currentYear); // Siempre incluir ano actual
+    const availableFinancialYears = Array.from(yearSet)
+      .filter(y => y <= currentYear) // Sin anos futuros
+      .sort((a, b) => b - a); // Descendente
+
+    // Contrato financiero del periodo seleccionado
+    const selectedPeriodFinancials = {
+      period: selectedPeriod,
+      preventiveCost,
+      correctiveCost,
+      totalCost,
+      positiveCostAverage,
+      includedPreventiveCount: selectedPreventiveRecords.length,
+      includedCorrectiveCount: selectedCorrectiveRecords.length,
+      hasCosts: totalCost > 0,
+      costDistribution,
+      topAssets,
+      financialTrend: financialTrendResult
+    };
 
     return {
       monthlyPreventiveCost,
@@ -519,11 +759,14 @@ newId() {
       topAssetsByMaintenanceCost,
       topAssetsByAnnualMaintenanceCost,
       monthlyFinancialTrend: monthlyFinancialTrendResult,
-      financialCoverage
+      financialCoverage,
+      // NUEVAS PROPIEDADES
+      selectedPeriodFinancials,
+      availableFinancialYears
     };
   },
 
-  /* â”€â”€ Lecturas desde Supabase â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Lecturas desde Supabase ├óÔÇØÔé¼├óÔÇØÔé¼ */
   async _selectAll(table, orderBy = 'created_at', ascending = true) {
     let q = this.supabase.from(table).select('*');
     if (orderBy) q = q.order(orderBy, { ascending });
@@ -591,21 +834,21 @@ currency: s.currency || 'NIO',
   },
 
   /* ====================================================
-     LOAD OPERATIONAL DATA — Carga explícita tras autenticación
+     LOAD OPERATIONAL DATA ÔÇö Carga expl├¡cita tras autenticaci├│n
      ==================================================== */
   async loadOperationalData() {
     if (this.mode !== 'supabase' || !this.supabase) {
-      throw new Error('Cliente Supabase no disponible o modo inválido');
+      throw new Error('Cliente Supabase no disponible o modo inv├ílido');
     }
 
     const session = Auth.getSession();
     if (!session || !session.id || !session.role || session.active !== true) {
-      throw new Error('Sesión Supabase inválida o perfil no disponible');
+      throw new Error('Sesi├│n Supabase inv├ílida o perfil no disponible');
     }
 
     const { data: { session: sdkSession } } = await this.supabase.auth.getSession();
     if (!sdkSession?.user || sdkSession.user.id !== session.id) {
-      throw new Error('Sesión SDK no coincide con adapter');
+      throw new Error('Sesi├│n SDK no coincide con adapter');
     }
 
     const [
@@ -678,7 +921,7 @@ currency: s.currency || 'NIO',
     await this._upsertRows('mantenimientos', corrective.map(c => ({ ...this._toCorrectiveRow(c), tipo: 'correctivo' })));
     await this._upsertSettingsRow({ currency: 'NIO', dateFormat: 'DD/MM/YYYY', alertDaysAhead: 7 });
 
-    const vehicularTypes = ['Camión','Camioneta','Carro','Motocicleta','Cabezal','Remolque','Tractor'];
+    const vehicularTypes = ['Cami├│n','Camioneta','Carro','Motocicleta','Cabezal','Remolque','Tractor'];
     const vehicles = assets
       .filter(a => vehicularTypes.includes(a.type))
       .map(a => ({ id: 'vh_' + a.id, code: a.code, tipo: a.type, marca: a.brand, modelo: a.model, anio: a.year, placa: a.plate, serial: a.serial, current_km: a.currentKm, status: a.status, notes: a.notes, created_at: nowIso, updated_at: nowIso }));
@@ -713,7 +956,7 @@ currency: s.currency || 'NIO',
 
     return this._enqueueRecord('assets', id, async () => {
       if (this._cache.assets.some(a => a.code === code)) {
-        throw new Error('addAsset: código duplicado: ' + code);
+        throw new Error('addAsset: c├│digo duplicado: ' + code);
       }
       if (this._cache.assets.some(a => a.id === id)) {
         throw new Error('addAsset: id duplicado: ' + id);
@@ -905,7 +1148,7 @@ currency: s.currency || 'NIO',
     a.unshift(entry);
     if (a.length > 500) a.length = 500;
     const row = { id: entry.id, user_name: entry.user || '', action: entry.action || '', detail: entry.detail || '', ts: entry.ts };
-    this._persistAuditRow(row).catch(err => console.warn('[DB] Auditoría no disponible:', err.message));
+    this._persistAuditRow(row).catch(err => console.warn('[DB] Auditor├¡a no disponible:', err.message));
   },
 
   /* ====================================================
@@ -980,7 +1223,7 @@ currency: s.currency || 'NIO',
   },
 
   /* ====================================================
-     Vehículos CRUD
+     Veh├¡culos CRUD
      ==================================================== */
   getVehiculos()      { return this._cache.vehicles; },
   saveVehiculos(arr)  { this._cache.vehicles = arr || []; this._syncReplace('vehicles'); },
@@ -1040,7 +1283,7 @@ currency: s.currency || 'NIO',
   deleteDocumento(id)  { this._cache.documents = this._cache.documents.filter(x => x.id !== id); this._syncDeleteRow('documentos', id, 'documents'); },
 
   /* ====================================================
-     Alertas (módulo independiente)
+     Alertas (m├│dulo independiente)
      ==================================================== */
   getAlertas() { return this._cache.alerts; },
   saveAlertas(arr) { this._cache.alerts = arr || []; this._syncReplace('alerts'); },
@@ -1116,7 +1359,7 @@ currency: s.currency || 'NIO',
   },
 
   /* ====================================================
-     Sincronización con Supabase (escrituras)
+     Sincronizaci├│n con Supabase (escrituras)
      ==================================================== */
   _syncUpsertRow(table, row, coll) {
     if (this.mode !== 'supabase' || !this.supabase) {
@@ -1196,7 +1439,7 @@ currency: s.currency || 'NIO',
   },
 
   /* ====================================================
-     Caché y respaldo LocalStorage
+     Cach├® y respaldo LocalStorage
      ==================================================== */
   _resetCache() {
     this._cache = {
@@ -1244,14 +1487,14 @@ currency: s.currency || 'NIO',
     try { localStorage.setItem(key, JSON.stringify(this._cache[ck] || [])); } catch (e) { console.error(e); }
   },
 
-  /* â”€â”€ Escritura LocalStorage estricta para helpers con rollback (propaga errores) â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Escritura LocalStorage estricta para helpers con rollback (propaga errores) ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _writeLSStrict(ck) {
     const key = this._cacheKeyToLS(ck);
     if (!key) return;
     localStorage.setItem(key, JSON.stringify(this._cache[ck] || []));
   },
 
-  /* â”€â”€ Persistencia según modo para helpers de Activos (evita duplicar _sync*) â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Persistencia seg├║n modo para helpers de Activos (evita duplicar _sync*) ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _persistInsertAsset(record) {
     if (this.mode !== 'supabase' || !this.supabase) {
       this._writeLSStrict('assets');
@@ -1276,7 +1519,7 @@ _persistDeleteAsset(id) {
     return this._syncDeleteRow('activos', id, 'assets');
   },
 
-  /* â”€â”€ Helpers genéricos de persistencia (reutilizan _enqueueRecord) â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Helpers gen├®ricos de persistencia (reutilizan _enqueueRecord) ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _persistInsert(collection, table, record, toRowFn, extraFields = {}) {
     if (this.mode !== 'supabase' || !this.supabase) {
       this._writeLSStrict(collection);
@@ -1306,7 +1549,7 @@ _persistDeleteAsset(id) {
   },
 
   /* ====================================================
-     Mapeo de filas (snake_case en Supabase ↔ camelCase en la app)
+     Mapeo de filas (snake_case en Supabase Ôåö camelCase en la app)
      ==================================================== */
   _toRow(ck, obj) {
     switch (ck) {
@@ -1423,14 +1666,14 @@ _persistDeleteAsset(id) {
     };
   },
 
-  /* â”€â”€ Alertas: el objeto completo se guarda como JSON en `mensaje`,
-     con campos de resumen en las columnas estándar (compatible con el esquema actual) â”€â”€ */
+  /* ├óÔÇØÔé¼├óÔÇØÔé¼ Alertas: el objeto completo se guarda como JSON en `mensaje`,
+     con campos de resumen en las columnas est├índar (compatible con el esquema actual) ├óÔÇØÔé¼├óÔÇØÔé¼ */
   _toAlertRow(a) {
     return {
       id: a.id,
       tipo: a.tipoMantenimiento || a.tipo || '',
       severity: a.severity || 'info',
-      titulo: `${a.tipoMantenimiento || 'Alerta'} â€” ${a.vehiculo || ''}`.trim(),
+      titulo: `${a.tipoMantenimiento || 'Alerta'} ├óÔé¼ÔÇØ ${a.vehiculo || ''}`.trim(),
       mensaje: JSON.stringify({
         assetId: a.assetId || null,
         vehiculo: a.vehiculo || '',
@@ -1486,7 +1729,7 @@ _persistDeleteAsset(id) {
   },
 
   /* ====================================================
-     KPI Calculation Engine (sin cambios de lógica)
+     KPI Calculation Engine (sin cambios de l├│gica)
      ==================================================== */
   calcKPIs(f = {}) {
     let assets = this.getAssets();
@@ -1506,7 +1749,7 @@ _persistDeleteAsset(id) {
     preventive.forEach(p => expenses.push({ date: p.lastDoneDate, amount: p.cost, assetId: p.assetId, category: 'preventivo' }));
     corrective.forEach(c => expenses.push({ date: c.repairDate, amount: c.totalCost, assetId: c.assetId, category: 'correctivo' }));
 
-    // Motor financiero F4.5: agregación con parseo estricto y fechas financieras
+    // Motor financiero F4.5: agregaci├│n con parseo estricto y fechas financieras
     const financials = this._aggregateFinancials(preventive, corrective, now, f);
     const {
       monthlyPreventiveCost,
@@ -1522,7 +1765,10 @@ _persistDeleteAsset(id) {
       topAssetsByMaintenanceCost,
       topAssetsByAnnualMaintenanceCost,
       monthlyFinancialTrend,
-      financialCoverage
+      financialCoverage,
+      // NUEVO: Contrato temporal
+      selectedPeriodFinancials,
+      availableFinancialYears
     } = financials;
 
     const yearStart = new Date(now.getFullYear(), 0, 1);
@@ -1654,7 +1900,10 @@ _persistDeleteAsset(id) {
       topAssetsByMaintenanceCost,
       topAssetsByAnnualMaintenanceCost,
       monthlyFinancialTrend,
-      financialCoverage
+      financialCoverage,
+      // NUEVO: Contrato temporal S2E
+      selectedPeriodFinancials,
+      availableFinancialYears
     };
   },
 };
