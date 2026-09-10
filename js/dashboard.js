@@ -303,7 +303,8 @@ _escapeHtml(text) {
                 grid: { color: 'rgba(255,255,255,0.04)' },
               },
             },
-          });
+          }
+        });
       }
     }
 
