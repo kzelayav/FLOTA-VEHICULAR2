@@ -4,7 +4,7 @@
 
 const DashboardModule = {
   charts: {},
-  filter: { area:'', localidad:'', departamento:'' },
+  filter: { area:'', localidad:'', departamento:'', periodMonth: (new Date()).getMonth() + 1, periodYear: (new Date()).getFullYear() },
 
 _escapeHtml(text) {
     if (!text) return '';
@@ -54,6 +54,13 @@ _escapeHtml(text) {
       <select class="form-control" onchange="DashboardModule.setFilter('departamento',this.value)">
         <option value="">Todos los departamentos</option>
         ${deptos.map(d=>`<option value="${d}" ${this.filter.departamento===d?'selected':''}>${d}</option>`).join('')}
+      </select>
+      <select class="form-control" onchange="DashboardModule.setFilter('periodMonth',this.value)" aria-label="Filtrar por mes">
+        <option value="all" ${this.filter.periodMonth==='all'?'selected':''}>Todos los meses</option>
+        ${[{n:1,v:'Enero'},{n:2,v:'Febrero'},{n:3,v:'Marzo'},{n:4,v:'Abril'},{n:5,v:'Mayo'},{n:6,v:'Junio'},{n:7,v:'Julio'},{n:8,v:'Agosto'},{n:9,v:'Septiembre'},{n:10,v:'Octubre'},{n:11,v:'Noviembre'},{n:12,v:'Diciembre'}].map(m=>`<option value="${m.n}" ${this.filter.periodMonth===m.n?'selected':''}>${m.v}</option>`).join('')}
+      </select>
+      <select class="form-control" id="dash-filter-year" onchange="DashboardModule.setFilter('periodYear',this.value)" aria-label="Filtrar por año">
+        <option value="">Año</option>
       </select>
     </div>
 
@@ -126,11 +133,89 @@ _escapeHtml(text) {
     this.renderAvgCost(kpis);
     this.renderCoverageNotice(kpis);
     this.renderAvailability(kpis);
+    this.updateFilters(kpis);
     document.getElementById('dash-updated').textContent = `Actualizado: ${new Date().toLocaleTimeString('es')}`;
   },
 
+  // Actualiza los selectores de mes y año con los datos del motor
+  updateFilters(kpis) {
+    // Actualizar selector de año
+    const yearSelect = document.getElementById('dash-filter-year');
+    if (yearSelect) {
+      const currentYear = (new Date()).getFullYear();
+      const years = Array.isArray(kpis.availableFinancialYears)
+        ? kpis.availableFinancialYears.filter(y => Number.isInteger(y) && y <= currentYear)
+        : [];
+      // Asegurar que el año actual esté presente
+      if (!years.includes(currentYear)) years.push(currentYear);
+      // Orden descendente, únicos
+      const uniqueYears = [...new Set(years)].sort((a, b) => b - a);
+
+      const currentValue = yearSelect.value;
+      yearSelect.innerHTML = '<option value="">Año</option>' + uniqueYears.map(y =>
+        `<option value="${y}" ${this.filter.periodYear===y?'selected':''}>${y}</option>`
+      ).join('');
+      // Restaurar valor si sigue válido, si no, usar año actual
+      if (uniqueYears.includes(parseInt(currentValue, 10))) {
+        yearSelect.value = currentValue;
+      } else {
+        yearSelect.value = String(this.filter.periodYear);
+      }
+    }
+
+    // Actualizar estado disabled de meses futuros
+    const monthSelect = document.querySelector("select[onchange*='periodMonth']");
+    if (monthSelect) {
+      const currentYear = (new Date()).getFullYear();
+      const currentMonth = (new Date()).getMonth() + 1;
+      const selectedYear = parseInt(this.filter.periodYear, 10) || currentYear;
+      const isCurrentYear = selectedYear === currentYear;
+      const maxMonth = isCurrentYear ? currentMonth : 12;
+
+      Array.from(monthSelect.options).forEach(opt => {
+        if (opt.value === 'all') return;
+        const monthNum = parseInt(opt.value, 10);
+        if (Number.isInteger(monthNum)) {
+          opt.disabled = isCurrentYear && monthNum > maxMonth;
+        }
+      });
+      // Si el mes seleccionado ahora está disabled, ajustar
+      const selectedMonth = monthSelect.value;
+      if (selectedMonth !== 'all' && monthSelect.querySelector(`option[value="${selectedMonth}"]`)?.disabled) {
+        monthSelect.value = String(currentMonth);
+        this.filter.periodMonth = currentMonth;
+      }
+    }
+  },
+
   setFilter(key, val) {
-    this.filter[key] = val;
+    if (key === 'periodMonth') {
+      // Normalizar periodMonth: all, 1-12, o mes actual
+      if (val === 'all' || val === 'ALL' || val === 'All') {
+        this.filter.periodMonth = 'all';
+      } else {
+        const parsed = parseInt(val, 10);
+        const currentMonth = (new Date()).getMonth() + 1;
+        const currentYear = (new Date()).getFullYear();
+        this.filter.periodMonth = (Number.isInteger(parsed) && parsed >= 1 && parsed <= 12) ? parsed : currentMonth;
+        // Si es mes futuro del año actual, ajustar al mes actual
+        if (this.filter.periodYear === currentYear && this.filter.periodMonth > currentMonth) {
+          this.filter.periodMonth = currentMonth;
+        }
+      }
+    } else if (key === 'periodYear') {
+      // Normalizar periodYear: número válido, o año actual
+      const parsed = parseInt(val, 10);
+      const currentYear = (new Date()).getFullYear();
+      this.filter.periodYear = (Number.isInteger(parsed) && parsed >= 1000 && parsed <= currentYear) ? parsed : currentYear;
+      // Al cambiar año, si el mes seleccionado es futuro para el nuevo año, ajustar
+      if (this.filter.periodYear === currentYear && typeof this.filter.periodMonth === 'number' && this.filter.periodMonth > (new Date()).getMonth() + 1) {
+        this.filter.periodMonth = (new Date()).getMonth() + 1;
+      }
+    } else {
+      // Filtros organizacionales
+      this.filter[key] = val;
+    }
     this.init();
   },
 
