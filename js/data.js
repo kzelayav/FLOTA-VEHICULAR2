@@ -731,6 +731,26 @@ newId() {
       .sort((a, b) => b - a); // Descendente
 
     // Contrato financiero del periodo seleccionado
+    // ============================================================
+    // NUEVO: CONTRATO FINANCIERO DEL AÑO SELECCIONADO
+    // ============================================================
+
+    // Calcular costos anuales del año seleccionado (usando prevEvaluated y corrEvaluated ya filtrados por organización)
+    const yearPreventiveRecords = prevEvaluated.filter(p => p._cost.isIncluded && p.lastDoneDate && this._parseLocalDate(p.lastDoneDate)?.getFullYear() === selectedPeriod.year);
+    const yearCorrectiveRecords = corrEvaluated.filter(c => c._cost.isIncluded && c.repairDate && this._parseLocalDate(c.repairDate)?.getFullYear() === selectedPeriod.year);
+
+    const yearPreventiveCost = yearPreventiveRecords.reduce((s, p) => s + p._cost.value, 0);
+    const yearCorrectiveCost = yearCorrectiveRecords.reduce((s, c) => s + c._cost.value, 0);
+    const yearTotalCost = yearPreventiveCost + yearCorrectiveCost;
+
+    const yearFinancials = {
+      year: selectedPeriod.year,
+      preventiveCost: yearPreventiveCost,
+      correctiveCost: yearCorrectiveCost,
+      totalCost: yearTotalCost,
+      hasCosts: yearTotalCost > 0
+    };
+
     const selectedPeriodFinancials = {
       period: selectedPeriod,
       preventiveCost,
@@ -742,7 +762,9 @@ newId() {
       hasCosts: totalCost > 0,
       costDistribution,
       topAssets,
-      financialTrend: financialTrendResult
+      financialTrend: financialTrendResult,
+      // NUEVO: Contrato financiero del año seleccionado
+      yearFinancials
     };
 
     return {

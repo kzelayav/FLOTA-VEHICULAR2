@@ -6,7 +6,7 @@ const DashboardModule = {
   charts: {},
   filter: { area:'', localidad:'', departamento:'', periodMonth: (new Date()).getMonth() + 1, periodYear: (new Date()).getFullYear() },
 
-_escapeHtml(text) {
+  _escapeHtml(text) {
     if (!text) return '';
 
     const entities = {
@@ -18,6 +18,27 @@ _escapeHtml(text) {
     };
 
     return String(text).replace(/[&<>"']/g, char => entities[char]);
+  },
+
+  // Obtiene el contrato financiero del período seleccionado con fallback defensivo
+  _getSelectedFinancials(kpis) {
+    if (!kpis || !kpis.selectedPeriodFinancials || typeof kpis.selectedPeriodFinancials !== 'object') {
+      return null;
+    }
+    return kpis.selectedPeriodFinancials;
+  },
+
+  // Obtiene etiqueta y modo del período para textos dinámicos
+  _getPeriodInfo(selectedFinancials) {
+    if (!selectedFinancials || !selectedFinancials.period) {
+      return { mode: 'month', label: 'Período seleccionado', shortLabel: 'Período' };
+    }
+    return {
+      mode: selectedFinancials.period.mode || 'month',
+      label: selectedFinancials.period.label || 'Período seleccionado',
+      shortLabel: selectedFinancials.period.shortLabel || 'Período',
+      isFuture: selectedFinancials.period.isFuture || false
+    };
   },
 
   render() {
@@ -71,7 +92,7 @@ _escapeHtml(text) {
     <div class="charts-grid mb-0" style="margin-bottom:20px;">
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">📈 Tendencia Financiera de Mantenimiento</div><div class="chart-subtitle">Últimos 12 meses</div></div>
+          <div><div class="chart-title">📈 Tendencia Financiera de Mantenimiento</div><div class="chart-subtitle" id="dash-trend-subtitle">Últimos 12 meses</div></div>
         </div>
         <div class="chart-canvas-wrapper tall"><canvas id="chart-monthly"></canvas></div>
       </div>
@@ -87,7 +108,7 @@ _escapeHtml(text) {
       </div>
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">🍩 Distribución del Costo de Mantenimiento</div></div>
+          <div><div class="chart-title">🍩 Distribución de Costos de Mantenimiento</div><div class="chart-subtitle" id="dash-dist-subtitle">Período seleccionado</div></div>
         </div>
         <div class="chart-canvas-wrapper"><canvas id="chart-prevvscorr"></canvas></div>
       </div>
@@ -100,13 +121,13 @@ _escapeHtml(text) {
     <div class="grid-2 financial-ranking-grid">
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">🏆 Activos con Mayor Costo Anual de Mantenimiento</div><div class="chart-subtitle">Año actual</div></div>
+          <div><div class="chart-title">🏆 Activos con Mayor Costo de Mantenimiento</div><div class="chart-subtitle" id="dash-ranking-subtitle">Período seleccionado</div></div>
         </div>
         <div id="dash-ranking"></div>
       </div>
       <div class="chart-card">
         <div class="chart-card-header">
-          <div><div class="chart-title">📈 Costo Promedio de Mantenimientos con Costo Positivo</div></div>
+          <div><div class="chart-title">📈 Costo Promedio de Mantenimientos con Costo Positivo</div><div class="chart-subtitle" id="dash-avg-subtitle">Período seleccionado</div></div>
         </div>
         <div id="dash-avg-cost"></div>
       </div>
@@ -260,11 +281,43 @@ _escapeHtml(text) {
   renderKPIs(kpis) {
     const el = document.getElementById('dash-kpi-grid');
     if (!el) return;
+
+    const selectedFinancials = this._getSelectedFinancials(kpis);
+    const periodInfo = this._getPeriodInfo(selectedFinancials);
+    const hasSelectedFinancials = selectedFinancials !== null;
+
+    // Valores del período seleccionado (sin fallback legacy)
+    const totalCost = hasSelectedFinancials && Number.isFinite(selectedFinancials.totalCost)
+      ? selectedFinancials.totalCost : 0;
+    const preventiveCost = hasSelectedFinancials && Number.isFinite(selectedFinancials.preventiveCost)
+      ? selectedFinancials.preventiveCost : 0;
+    const correctiveCost = hasSelectedFinancials && Number.isFinite(selectedFinancials.correctiveCost)
+      ? selectedFinancials.correctiveCost : 0;
+
+    // KPI Anual: usar yearFinancials del período seleccionado
+    const selectedYearFinancials = selectedFinancials && selectedFinancials.yearFinancials
+      && typeof selectedFinancials.yearFinancials === 'object'
+        ? selectedFinancials.yearFinancials
+        : null;
+    const selectedYearTotal = selectedYearFinancials && Number.isFinite(selectedYearFinancials.totalCost)
+      ? selectedYearFinancials.totalCost
+      : 0;
+    const selectedYearLabel = (selectedYearFinancials && Number.isInteger(selectedYearFinancials.year))
+      ? 'Año ' + selectedYearFinancials.year
+      : (selectedFinancials?.period?.year ? 'Año ' + selectedFinancials.period.year : 'Período seleccionado');
+
+    const totalLabel = 'Costo del Período';
+    const totalSub = periodInfo.label;
+    const prevLabel = 'Mantenimiento Preventivo';
+    const prevSub = periodInfo.label;
+    const corrLabel = 'Mantenimiento Correctivo';
+    const corrSub = periodInfo.label;
+
     const cards = [
-      { icon:'📅', color:'purple', val: DB.fmtCurrency(kpis.monthCost), label:'Costo de Mantenimiento Mensual', sub:'Mes actual' },
-      { icon:'📊', color:'blue',   val: DB.fmtCurrency(kpis.yearCost), label:'Costo de Mantenimiento Anual', sub:'Año actual' },
-      { icon:'🛡️', color:'green',  val: DB.fmtCurrency(kpis.monthlyPreventiveCost), label:'Costo Preventivo del Mes', sub:'Preventivos ejecutados en el mes' },
-      { icon:'🔧', color:'red',    val: DB.fmtCurrency(kpis.monthlyCorrectiveCost), label:'Costo Correctivo del Mes', sub:'Correctivos reparados en el mes' },
+      { icon:'📅', color:'purple', val: DB.fmtCurrency(hasSelectedFinancials ? selectedFinancials.totalCost : 0), label: 'Costo del Período', sub: periodInfo.label },
+      { icon:'📊', color:'blue',   val: DB.fmtCurrency(selectedYearTotal), label: 'Costo Anual', sub: selectedYearLabel },
+      { icon:'🛡️', color:'green',  val: DB.fmtCurrency(hasSelectedFinancials ? selectedFinancials.preventiveCost : 0), label: 'Mantenimiento Preventivo', sub: periodInfo.label },
+      { icon:'🔧', color:'red',    val: DB.fmtCurrency(hasSelectedFinancials ? selectedFinancials.correctiveCost : 0), label: 'Mantenimiento Correctivo', sub: periodInfo.label },
     ];
     el.innerHTML = cards.map(c=>`
     <div class="kpi-card kpi-${c.color}">
@@ -284,8 +337,35 @@ _escapeHtml(text) {
       scales: { x: { ticks:{color:'#64748b'}, grid:{color:'rgba(255,255,255,0.04)'} }, y: { ticks:{color:'#64748b'}, grid:{color:'rgba(255,255,255,0.04)'} } },
     };
 
-    /* Monthly financial trend (new centralized series) */
-    const trend = Array.isArray(kpis.monthlyFinancialTrend) ? kpis.monthlyFinancialTrend : [];
+    const selectedFinancials = this._getSelectedFinancials(kpis);
+    const periodInfo = this._getPeriodInfo(selectedFinancials);
+    const hasSelectedFinancials = selectedFinancials !== null;
+
+    // Usar tendencia del período seleccionado si está disponible, sino legacy
+    const trend = hasSelectedFinancials && Array.isArray(selectedFinancials.financialTrend)
+      ? selectedFinancials.financialTrend
+      : [];
+    const hasFinancialTrendData = trend.some(item => Number(item.totalCost) > 0);
+    const ctx1 = document.getElementById('chart-monthly');
+
+    // Actualizar subtítulo de la tendencia dinámicamente
+    const trendSubtitleEl = document.getElementById('dash-trend-subtitle');
+    if (trendSubtitleEl) {
+      const periodInfo = this._getPeriodInfo(selectedFinancials);
+      if (periodInfo.mode === 'month') {
+        trendSubtitleEl.textContent = `12 meses hasta ${periodInfo.label}`;
+      } else if (periodInfo.mode === 'year') {
+        const trendEndYear = selectedFinancials?.period?.trendEndYear;
+        const trendEndMonth = selectedFinancials?.period?.trendEndMonth;
+        if (selectedFinancials?.period?.mode === 'year' && trendEndYear !== (new Date()).getFullYear()) {
+          trendSubtitleEl.textContent = `Enero a diciembre de ${trendEndYear}`;
+        } else {
+          trendSubtitleEl.textContent = `12 meses hasta el mes actual`;
+        }
+      }
+    }
+
+    /* Monthly financial trend (selected period series) */
     const hasFinancialTrendData = trend.some(item => Number(item.totalCost) > 0);
     const ctx1 = document.getElementById('chart-monthly');
 
@@ -304,7 +384,7 @@ _escapeHtml(text) {
           const emptyDiv = document.createElement('div');
           emptyDiv.className = 'empty-trend-state';
           emptyDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:220px;color:#64748b;text-align:center;padding:20px;';
-          emptyDiv.innerHTML = '<div class="empty-icon" style="font-size:48px;margin-bottom:12px;">📊</div><h3 style="margin:0;font-size:14px;color:#94a3b8;">Sin costos de mantenimiento en los últimos 12 meses</h3>';
+          emptyDiv.innerHTML = '<div class="empty-icon" style="font-size:48px;margin-bottom:12px;">📊</div><h3 style="margin:0;font-size:14px;color:#94a3b8;">Sin costos de mantenimiento en la tendencia del período seleccionado</h3>';
           container.appendChild(emptyDiv);
         }
       } else {
@@ -312,11 +392,6 @@ _escapeHtml(text) {
         ctx1.style.display = 'block';
         const existingEmpty = ctx1.parentElement?.querySelector('.empty-trend-state');
         if (existingEmpty) existingEmpty.remove();
-
-        const labels = trend.map(item => item.label || '');
-        const preventiveData = trend.map(item => Number(item.preventiveCost) || 0);
-        const correctiveData = trend.map(item => Number(item.correctiveCost) || 0);
-        const cur = DB.getCurrencySymbol(DB.getSettings().currency);
 
         this.charts.monthly = new Chart(ctx1, {
           type: 'bar',
@@ -391,9 +466,8 @@ _escapeHtml(text) {
           }
         });
       }
-    }
 
-    /* Failures by category */
+    /* Failures by category - mantener intacto */
     const catColors = ['#3b82f6','#f59e0b','#10b981','#ef4444','#a855f7','#06b6d4','#84cc16','#f97316','#ec4899','#14b8a6'];
     const corr = kpis.corrective || DB.getCorrective();
     const failByCat = {};
@@ -408,22 +482,18 @@ _escapeHtml(text) {
       options: { ...CHART_DEFAULTS, responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{...CHART_DEFAULTS.plugins, legend:{display:false}} },
     });
 
-    /* Distribution donut - using preventiveCostPct / correctiveCostPct */
+    /* Distribution donut - usando selectedFinancials.costDistribution */
     const ctx4 = document.getElementById('chart-prevvscorr');
-    const hasDist = kpis.hasCostDistribution === true;
-    const prevPct = kpis.preventiveCostPct || 0;
-    const corrPct = kpis.correctiveCostPct || 0;
-    const prevAmount = kpis.monthlyPreventiveCost || 0;
-    const corrAmount = kpis.monthlyCorrectiveCost || 0;
-
-    if (ctx4) {
-      if (hasDist) {
+    const selectedFinancials = this._getSelectedFinancials(kpis);
+    const hasSelectedFinancials = selectedFinancials !== null;
+    const dist = hasSelectedFinancials ? selectedFinancials.costDistribution : { hasData: false, preventiveCost: 0, correctiveCost: 0, preventivePct: 0, correctivePct: 0, hasData: false };
+    const hasDist = dist.hasData === true;
         this.charts.pvc = new Chart(ctx4, {
           type: 'doughnut',
           data: {
             labels: ['Preventivo', 'Correctivo'],
             datasets: [{
-              data: [prevPct, corrPct],
+              data: [dist.preventiveCost || 0, dist.correctiveCost || 0],
               backgroundColor: ['#10b981', '#ef4444'],
               borderWidth: 2,
               borderColor: '#131929',
@@ -438,9 +508,9 @@ _escapeHtml(text) {
               tooltip: {
                 callbacks: {
                   label: ctx => {
-                    const pct = ctx.parsed.toFixed(1);
-                    const amount = ctx.dataIndex === 0 ? prevAmount : corrAmount;
-                    return `${ctx.label}: ${pct}% (${DB.fmtCurrency(amount)})`;
+                    const pct = ctx.dataIndex === 0 ? (dist.preventivePct || 0) : (dist.correctivePct || 0);
+                    const amount = ctx.dataIndex === 0 ? (dist.preventiveCost || 0) : (dist.correctiveCost || 0);
+                    return `${ctx.label}: ${pct.toFixed(1)}% (${DB.fmtCurrency(amount)})`;
                   }
                 }
               }
@@ -459,7 +529,7 @@ _escapeHtml(text) {
               ...CHART_DEFAULTS.plugins,
               title: {
                 display: true,
-                text: 'Sin datos de costos en el período actual',
+                text: 'Sin datos de costos en el período seleccionado',
                 color: '#94a3b8',
                 font: { size: 13 }
               }
@@ -473,8 +543,28 @@ _escapeHtml(text) {
   renderRanking(kpis) {
     const el = document.getElementById('dash-ranking');
     if (!el) return;
-    const ranking = kpis.topAssetsByAnnualMaintenanceCost || [];
-    if (!ranking.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>Sin activos con costo de mantenimiento este año</h3></div>`; return; }
+
+    const selectedFinancials = this._getSelectedFinancials(kpis);
+    const periodInfo = this._getPeriodInfo(selectedFinancials);
+    const hasSelectedFinancials = selectedFinancials !== null;
+    const ranking = hasSelectedFinancials ? (selectedFinancials.topAssets || []) : [];
+
+    // Actualizar subtítulo del ranking dinámicamente
+    const rankingSubtitleEl = document.getElementById('dash-ranking-subtitle');
+    if (rankingSubtitleEl) {
+      const periodInfo = this._getPeriodInfo(selectedFinancials);
+      rankingSubtitleEl.textContent = periodInfo.label;
+    }
+
+    if (!ranking.length) {
+      const periodInfo = this._getPeriodInfo(selectedFinancials);
+      const emptyMsg = periodInfo.mode === 'year'
+        ? `Sin activos con costos de mantenimiento durante ${periodInfo.label.replace('Año ', '')}`
+        : `Sin activos con costos de mantenimiento en ${periodInfo.label}`;
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>${emptyMsg}</h3></div>`;
+      return;
+    }
+
     el.innerHTML = ranking.map((item,i)=>`
     <div class="ranking-item financial annual">
       <div class="rank-num ${i<3?'top3':''}">${i+1}</div>
@@ -484,16 +574,16 @@ _escapeHtml(text) {
       <div class="rank-breakdown">
         <span class="rank-component rank-preventive">
           <span class="rank-component-label">Preventivo</span>
-          <span class="rank-component-value">${DB.fmtCurrency(item.preventiveCost)}</span>
+          <span class="rank-component-value">${DB.fmtCurrency(item.preventiveCost || 0)}</span>
         </span>
         <span class="rank-component rank-corrective">
           <span class="rank-component-label">Correctivo</span>
-          <span class="rank-component-value">${DB.fmtCurrency(item.correctiveCost)}</span>
+          <span class="rank-component-value">${DB.fmtCurrency(item.correctiveCost || 0)}</span>
         </span>
       </div>
       <div class="rank-total">
-        <span class="rank-total-label">Total anual</span>
-        <span class="rank-cost">${DB.fmtCurrency(item.totalCost)}</span>
+        <span class="rank-total-label">Total</span>
+        <span class="rank-cost">${DB.fmtCurrency(item.totalCost || 0)}</span>
       </div>
     </div>`).join('');
   },
@@ -501,19 +591,33 @@ _escapeHtml(text) {
   renderAvgCost(kpis) {
     const el = document.getElementById('dash-avg-cost');
     if (!el) return;
-    const avg = kpis.avgPositiveMaintenanceCost;
-    if (avg === null || avg === undefined) {
+
+    const selectedFinancials = this._getSelectedFinancials(kpis);
+    const periodInfo = this._getPeriodInfo(selectedFinancials);
+    const hasSelectedFinancials = selectedFinancials !== null;
+
+    // Actualizar subtítulo del promedio dinámicamente
+    const avgSubtitleEl = document.getElementById('dash-avg-subtitle');
+    if (avgSubtitleEl) {
+      avgSubtitleEl.textContent = periodInfo.label;
+    }
+
+    const avg = hasSelectedFinancials && Number.isFinite(selectedFinancials.positiveCostAverage)
+      ? selectedFinancials.positiveCostAverage
+      : 0;
+
+    if (avg === 0) {
       el.innerHTML = `
       <div class="avg-cost-card">
         <div class="avg-cost-value">—</div>
-        <div class="avg-cost-sub">Ningún mantenimiento con costo positivo este mes</div>
+        <div class="avg-cost-sub">Ningún mantenimiento con costo positivo en ${periodInfo.label}</div>
       </div>`;
       return;
     }
     el.innerHTML = `
     <div class="avg-cost-card">
-      <div class="avg-cost-value">${DB.fmtCurrency(avg)}</div>
-      <div class="avg-cost-sub">Promedio mensual de costos válidos mayores que cero</div>
+      <div class="avg-cost-value">${DB.fmtCurrency(selectedFinancials.positiveCostAverage)}</div>
+      <div class="avg-cost-sub">Promedio de costos válidos mayores que cero en ${periodInfo.label}</div>
     </div>`;
   },
 
