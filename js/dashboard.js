@@ -478,8 +478,6 @@ const DashboardModule = {
 
     /* Distribution donut - usando selectedFinancials.costDistribution */
     const ctx4 = document.getElementById('chart-prevvscorr');
-    const selectedFinancials = this._getSelectedFinancials(kpis);
-    const hasSelectedFinancials = selectedFinancials !== null;
     const dist = hasSelectedFinancials ? selectedFinancials.costDistribution : { hasData: false, preventiveCost: 0, correctiveCost: 0, preventivePct: 0, correctivePct: 0, hasData: false };
     const hasDist = dist.hasData === true;
         this.charts.pvc = new Chart(ctx4, {
