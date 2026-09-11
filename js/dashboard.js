@@ -365,16 +365,9 @@ const DashboardModule = {
       }
     }
 
-    /* Monthly financial trend (selected period series) */
-    const hasFinancialTrendData = trend.some(item => Number(item.totalCost) > 0);
-    const ctx1 = document.getElementById('chart-monthly');
 
-    // Destroy existing chart instance if exists
-    if (this.charts.monthly) {
-      this.charts.monthly.destroy();
-      this.charts.monthly = null;
-    }
 
+// Monthly financial trend chart
     if (ctx1) {
       if (!hasFinancialTrendData) {
         // Empty state: show message instead of chart
@@ -432,12 +425,12 @@ const DashboardModule = {
                     const value = label === 'Preventivo'
                       ? Number(item.preventiveCost) || 0
                       : Number(item.correctiveCost) || 0;
-                    return `${label}: ${DB.fmtCurrency(value)}`;
+                    return label + ': ' + DB.fmtCurrency(value);
                   },
                   footer: ctx => {
                     const item = trend[ctx[0].dataIndex];
                     if (!item) return '';
-                    return `Total: ${DB.fmtCurrency(Number(item.totalCost) || 0)}`;
+                    return 'Total: ' + DB.fmtCurrency(Number(item.totalCost) || 0);
                   },
                 },
               },
@@ -455,17 +448,17 @@ const DashboardModule = {
                   color: '#64748b',
                   callback: value => {
                     const abs = Math.abs(value);
-                    if (abs >= 1000000) return `${(value/1000000).toFixed(1)}M`;
-                    if (abs >= 1000) return `${(value/1000).toFixed(1)}K`;
+                    if (abs >= 1000000) return (value/1000000).toFixed(1) + 'M';
+                    if (abs >= 1000) return (value/1000).toFixed(1) + 'K';
                     return value.toLocaleString('es-NI');
                   },
                 },
                 grid: { color: 'rgba(255,255,255,0.04)' },
               },
             },
-          }
-        });
+          });
       }
+    }
 
     /* Failures by category - mantener intacto */
     const catColors = ['#3b82f6','#f59e0b','#10b981','#ef4444','#a855f7','#06b6d4','#84cc16','#f97316','#ec4899','#14b8a6'];
