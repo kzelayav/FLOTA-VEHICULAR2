@@ -480,6 +480,8 @@ const DashboardModule = {
     const ctx4 = document.getElementById('chart-prevvscorr');
     const dist = hasSelectedFinancials ? selectedFinancials.costDistribution : { hasData: false, preventiveCost: 0, correctiveCost: 0, preventivePct: 0, correctivePct: 0, hasData: false };
     const hasDist = dist.hasData === true;
+    if (ctx4) {
+      if (hasDist) {
         this.charts.pvc = new Chart(ctx4, {
           type: 'doughnut',
           data: {
