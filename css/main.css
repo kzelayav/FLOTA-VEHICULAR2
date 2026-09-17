@@ -1499,10 +1499,31 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 0.5; }
    F4.5-S3-A2 LOGIN VISUAL OVERRIDES
    ==================================================== */
 
-/* New logo wrapper (replaces baseline .login-logo-icon which was the SVG) */
+/* ========== CARD ========== */
+#login-page .login-card {
+  max-width: 420px;
+  padding: 36px 36px;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.03),
+    0 4px 24px rgba(0,0,0,0.35),
+    0 20px 60px rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+}
+
+/* ========== HEADER LAYOUT (vertical, centered) ========== */
+#login-page .login-logo {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 0;
+  margin-bottom: 28px;
+}
+
 #login-page .login-logo-icon {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 14px;
   background: linear-gradient(135deg, var(--primary) 0%, #0a4d3a 100%);
   display: flex;
@@ -1513,25 +1534,167 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 0.5; }
     0 4px 16px rgba(11, 61, 46, 0.4),
     inset 0 1px 0 rgba(255,255,255,0.1);
   animation: none; /* Neutralize baseline logoPulse */
+  flex-shrink: 0;
 }
 
 #login-page .login-logo-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   stroke: currentColor;
 }
 
-/* Login footer */
+/* Brand text */
+#login-page .login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#login-page .login-brand h1 {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+#login-page .login-brand p {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  font-weight: 400;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 300px;
+}
+
+/* ========== FORM SPACING ========== */
+#login-page #login-form {
+  gap: 20px;
+}
+
+#login-page .form-group {
+  gap: 8px;
+}
+
+#login-page .form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Input fields */
+#login-page .form-control {
+  height: 48px;
+  font-size: 14.5px;
+  padding: 12px 44px 12px 44px;
+}
+
+#login-page .input-icon {
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-faint);
+}
+
+/* Focus states - green border only on focus/focus-within */
+#login-page .form-control {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+#login-page .form-control:hover {
+  border-color: var(--border-2);
+  background: var(--bg-2);
+}
+
+#login-page .input-wrapper:focus-within .form-control,
+#login-page .form-control:focus {
+  border-color: var(--primary);
+  background: var(--bg-2);
+  box-shadow:
+    0 0 0 3px var(--primary-glow),
+    0 2px 8px rgba(0,0,0,0.2);
+  outline: none;
+}
+
+#login-page .input-wrapper:focus-within .input-icon,
+#login-page .form-control:focus + .input-icon {
+  color: var(--primary);
+}
+
+/* Toggle password button */
+#login-page .toggle-password {
+  right: 10px;
+  width: 36px;
+  height: 36px;
+}
+
+/* Form error */
+#login-page .form-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 6px;
+}
+
+/* ========== BUTTON ========== */
+#login-page .btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 13px 24px;
+  font-size: 14.5px;
+  font-weight: 600;
+  height: 48px;
+  margin-top: 6px;
+  box-shadow:
+    0 4px 16px rgba(11, 61, 46, 0.35),
+    0 2px 6px rgba(0,0,0,0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#login-page .btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 20px rgba(11, 61, 46, 0.4),
+    0 3px 8px rgba(0,0,0,0.25);
+}
+
+#login-page .btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+#login-page .btn-primary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+#login-page .btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+#login-page .btn-loader {
+  width: 18px;
+  height: 18px;
+}
+
+/* ========== FOOTER ========== */
 #login-page .login-footer {
-  margin-top: 24px;
+  margin-top: 26px;
   text-align: center;
   font-size: 12px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: 500;
   letter-spacing: 0.02em;
 }
 
-/* Reduced Motion - only what's needed for login */
+/* ========== REDUCED MOTION ========== */
 @media (prefers-reduced-motion: reduce) {
   #login-page .login-card,
   #login-page .login-header,
@@ -1548,11 +1711,33 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 0.5; }
   }
 }
 
-/* Responsive - only login-specific adjustments */
+/* ========== RESPONSIVE ========== */
 @media (max-width: 480px) {
-  #login-page .login-logo-icon { width: 44px; height: 44px; border-radius: 12px; }
-  #login-page .login-logo-icon svg { width: 22px; height: 22px; }
-  #login-page .login-footer { font-size: 11px; }
+  #login-page { padding: 16px; }
+  #login-page .login-card {
+    padding: 32px 24px;
+    border-radius: 14px;
+    max-width: 100%;
+  }
+  #login-page .login-logo-icon { width: 48px; height: 48px; border-radius: 12px; }
+  #login-page .login-logo-icon svg { width: 24px; height: 24px; }
+  #login-page .login-brand h1 { font-size: 20px; }
+  #login-page .login-brand p { font-size: 13px; max-width: 260px; }
+  #login-page .form-control {
+    height: 46px;
+    font-size: 14px;
+    padding: 11px 42px 11px 42px;
+  }
+  #login-page .input-icon { left: 12px; width: 17px; height: 17px; }
+  #login-page .toggle-password { width: 34px; height: 34px; right: 8px; }
+  #login-page .btn-primary { height: 46px; font-size: 14px; padding: 12px 20px; }
+  #login-page .login-footer { font-size: 11.5px; }
+}
+
+@media (max-width: 375px) {
+  #login-page .login-card { padding: 28px 20px; }
+  #login-page .login-brand h1 { font-size: 19px; }
+  #login-page .login-brand p { font-size: 12.5px; }
 }
 
 /* ====================================================
