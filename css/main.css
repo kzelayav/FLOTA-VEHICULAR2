@@ -2012,20 +2012,59 @@ html[data-theme="light"] .theme-toggle .theme-icon-moon {
   }
 }
 
-/* Responsive adjustments for theme toggle */
-@media (max-width: 480px) {
-  .theme-toggle {
-    width: 36px;
-    height: 36px;
+  /* Header adjustments for light theme */
+  #header {
+    background: var(--surface-primary);
+    border-bottom-color: var(--border-primary);
   }
-  .theme-toggle svg {
-    width: 18px;
-    height: 18px;
+
+  #header .header-title h1 {
+    background: linear-gradient(90deg, var(--text-primary), var(--text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
+
+  #header .header-title p {
+    color: var(--text-secondary);
+  }
+
+  .header-actions .alert-bell {
+    background: var(--surface-secondary);
+    border-color: var(--border-primary);
+    color: var(--text-muted);
+  }
+
+  .header-actions .alert-bell:hover {
+    background: var(--surface-tertiary);
+    color: var(--text-primary);
+  }
+
+  .header-actions .theme-toggle {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+  }
+
+  .header-actions .theme-toggle:hover {
+    background: var(--surface-tertiary);
+    color: var(--text-primary);
+  }
+
+  .header-actions .header-user-btn {
+    background: var(--surface-secondary);
+  }
+
+  .header-actions .header-user-btn:hover {
+    background: var(--surface-tertiary);
+  }
+
+  .header-actions .header-user-avatar {
+    background: var(--brand-primary-subtle);
+  }
+
 }
 
-/* ====================================================
-   F4.5-S3-A2 LOGIN VISUAL OVERRIDES
+/* Responsive adjustments for theme toggle */
    ==================================================== */
 
 /* ========== CARD ========== */
