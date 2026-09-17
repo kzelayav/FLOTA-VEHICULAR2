@@ -234,6 +234,29 @@ const App = {
         }
       }
     });
+    // Theme toggle (F4.6-S2)
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+      function updateThemeToggle() {
+        const theme = document.documentElement.dataset.theme || 'dark';
+        const isDark = theme === 'dark';
+        themeToggle.setAttribute('aria-label', isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
+        themeToggle.title = isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+      }
+      themeToggle.addEventListener('click', () => {
+        const current = document.documentElement.dataset.theme || 'dark';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        document.documentElement.style.colorScheme = next;
+        try {
+          localStorage.setItem('fleet_theme', next);
+        } catch (e) {
+          // localStorage unavailable (e.g., private mode), ignore
+        }
+        updateThemeToggle();
+      });
+      updateThemeToggle();
+    }
   },
 
   initLoginForm() {

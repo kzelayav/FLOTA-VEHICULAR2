@@ -4,41 +4,489 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* ── CSS Variables ── */
+/* ── Semantic CSS Variables (F4.6-S2) ── */
+/* Dark theme defaults (default theme) */
 :root {
-  --primary:        #0b3d2e;
-  --primary-dark:   #072d20;
-  --primary-glow:   rgba(11, 61, 46, 0.25);
-  --success:        #10b981;
-  --success-bg:     rgba(16,185,129,0.12);
-  --warning:        #f59e0b;
-  --warning-bg:     rgba(245,158,11,0.12);
-  --danger:         #ef4444;
-  --danger-bg:      rgba(239,68,68,0.12);
-  --info:           #06b6d4;
-  --info-bg:        rgba(6,182,212,0.12);
+  /* ── Brand ── */
+  --brand-primary:        #0b3d2e;
+  --brand-primary-hover:  #072d20;
+  --brand-primary-active: #052618;
+  --brand-primary-subtle: rgba(11, 61, 46, 0.25);
 
-  --bg:             #0b0f1a;
-  --bg-2:           #0f1526;
-  --surface:        #131929;
-  --surface-2:      #1a2035;
-  --surface-3:      #212840;
-  --border:         rgba(255,255,255,0.07);
-  --border-2:       rgba(255,255,255,0.12);
+  /* ── Status ── */
+  --status-success:       #10b981;
+  --status-success-bg:    rgba(16, 185, 129, 0.12);
+  --status-warning:       #f59e0b;
+  --status-warning-bg:    rgba(245, 158, 11, 0.12);
+  --status-danger:        #ef4444;
+  --status-danger-bg:     rgba(239, 68, 68, 0.12);
+  --status-info:          #06b6d4;
+  --status-info-bg:       rgba(6, 182, 212, 0.12);
 
-  --text:           #e2e8f0;
-  --text-muted:     #94a3b8;
-  --text-faint:     #4b5563;
+  /* ── Backgrounds ── */
+  --bg-primary:       #0b0f1a;
+  --bg-secondary:     #0f1526;
+  --bg-tertiary:      #1a2035;
 
+  /* ── Surfaces ── */
+  --surface-primary:   #131929;
+  --surface-secondary: #1a2035;
+  --surface-tertiary:  #212840;
+  --surface-hover:     #1a2035;
+  --surface-active:    #212840;
+
+  /* ── Borders ── */
+  --border-primary:   rgba(255,255,255,0.07);
+  --border-secondary: rgba(255,255,255,0.12);
+  --border-focus:     var(--brand-primary);
+
+  /* ── Text ── */
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-tertiary:  #64748b;
+  --text-on-brand:  #ffffff;
+
+  /* ── Brand ── */
+  --brand-primary:        #0b3d2e;
+  --brand-primary-hover:  #072d20;
+  --brand-primary-active: #052618;
+  --brand-primary-subtle: rgba(11, 61, 46, 0.25);
+
+  /* ── Status ── */
+  --status-success:       #10b981;
+  --status-success-bg:    rgba(16, 185, 129, 0.12);
+  --status-warning:       #f59e0b;
+  --status-warning-bg:    rgba(245, 158, 11, 0.12);
+  --status-danger:        #ef4444;
+  --status-danger-bg:     rgba(239, 68, 68, 0.12);
+  --status-info:          #06b6d4;
+  --status-info-bg:       rgba(6, 182, 212, 0.12);
+
+  /* ── Focus ── */
+  --focus-ring-color: var(--brand-primary);
+  --focus-ring-shadow: var(--brand-primary-subtle);
+
+  /* ── Inputs ── */
+  --input-bg:             var(--bg-primary);
+  --input-border:         var(--border-primary);
+  --input-border-hover:   var(--border-secondary);
+  --input-border-focus:   var(--border-focus);
+  --input-placeholder:    var(--text-tertiary);
+
+  /* ── Tables ── */
+  --table-header-bg:  var(--surface-secondary);
+  --table-row-hover:  var(--surface-hover);
+  --table-border:     var(--border-primary);
+
+  /* ── Sidebar ── */
+  --sidebar-bg:                  var(--surface-primary);
+  --sidebar-border:              var(--border-primary);
+  --sidebar-item-hover:          var(--surface-hover);
+  --sidebar-item-active:         var(--brand-primary-subtle);
+  --sidebar-item-active-border:  var(--brand-primary);
+
+  /* ── Overlay ── */
+  --overlay-backdrop:  rgba(0,0,0,0.8);
+  --overlay-loading:   rgba(11,15,26,0.92);
+
+  /* ── Shadows ── */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md:  0 4px 24px rgba(0,0,0,0.4);
+  --shadow-lg:  0 12px 40px rgba(0,0,0,0.5);
+
+  /* ── Native browser appearance ── */
+  --color-scheme: dark;
+
+  /* ── Legacy token compatibility (map to new semantic tokens) ── */
+  --primary:        var(--brand-primary);
+  --primary-dark:   var(--brand-primary-hover);
+  --primary-glow:   var(--brand-primary-subtle);
+  --success:        var(--status-success);
+  --success-bg:     var(--status-success-bg);
+  --warning:        var(--status-warning);
+  --warning-bg:     var(--status-warning-bg);
+  --danger:         var(--status-danger);
+  --danger-bg:      var(--status-danger-bg);
+  --info:           var(--status-info);
+  --info-bg:        var(--status-info-bg);
+
+  --bg:             var(--bg-primary);
+  --bg-2:           var(--bg-secondary);
+  --surface:        var(--surface-primary);
+  --surface-2:      var(--surface-secondary);
+  --surface-3:      var(--surface-tertiary);
+  --border:         var(--border-primary);
+  --border-2:       var(--border-secondary);
+
+  --text:           var(--text-primary);
+  --text-muted:     var(--text-secondary);
+  --text-faint:     var(--text-tertiary);
+
+  --shadow:         var(--shadow-md);
+
+  /* ── Geometry, Layout & Timing (stable) ── */
   --sidebar-w:      260px;
   --sidebar-w-col:  72px;
   --header-h:       64px;
   --radius:         12px;
   --radius-sm:      8px;
   --radius-lg:      16px;
-  --shadow:         0 4px 24px rgba(0,0,0,0.4);
-  --shadow-sm:      0 2px 12px rgba(0,0,0,0.3);
   --transition:     0.2s ease;
+
+  /* ── Text (legacy mapping) ── */
+  --text:           var(--text-primary);
+  --text-muted:     var(--text-secondary);
+  --text-faint:     var(--text-tertiary);
+}
+
+/* ── Light Theme ── */
+html[data-theme="light"] {
+  /* ── Backgrounds ── */
+  --bg-primary:       #f8fafc;
+  --bg-secondary:     #f1f5f9;
+  --bg-tertiary:      #e2e8f0;
+
+  /* ── Surfaces ── */
+  --surface-primary:   #ffffff;
+  --surface-secondary: #f8fafc;
+  --surface-tertiary:  #f1f5f9;
+  --surface-hover:     #f1f5f9;
+  --surface-active:    #e2e8f0;
+
+  /* ── Borders ── */
+  --border-primary:   rgba(0,0,0,0.08);
+  --border-secondary: rgba(0,0,0,0.12);
+  --border-focus:     var(--brand-primary);
+
+  /* ── Text ── */
+  --text-primary:   #0f172a;
+  --text-secondary: #64748b;
+  --text-tertiary:  #94a3b8;
+  --text-on-brand:  #ffffff;
+
+  /* ── Status (slightly darker for light theme readability) ── */
+  --status-success:       #059669;
+  --status-success-bg:    rgba(16, 185, 129, 0.10);
+  --status-warning:       #d97706;
+  --status-warning-bg:    rgba(245, 158, 11, 0.10);
+  --status-danger:        #dc2626;
+  --status-danger-bg:     rgba(239, 68, 68, 0.10);
+  --status-info:          #0891b2;
+  --status-info-bg:       rgba(6, 182, 212, 0.10);
+
+  /* ── Focus ── */
+  --focus-ring-color: var(--brand-primary);
+  --focus-ring-shadow: var(--brand-primary-subtle);
+
+  /* ── Inputs ── */
+  --input-bg:             var(--bg-primary);
+  --input-border:         var(--border-primary);
+  --input-border-hover:   var(--border-secondary);
+  --input-border-focus:   var(--border-focus);
+  --input-placeholder:    var(--text-tertiary);
+
+  /* ── Tables ── */
+  --table-header-bg:  var(--surface-secondary);
+  --table-row-hover:  var(--surface-hover);
+  --table-border:     var(--border-primary);
+
+  /* ── Sidebar ── */
+  --sidebar-bg:                  var(--surface-primary);
+  --sidebar-border:              var(--border-primary);
+  --sidebar-item-hover:          var(--surface-hover);
+  --sidebar-item-active:         var(--brand-primary-subtle);
+  --sidebar-item-active-border:  var(--brand-primary);
+
+  /* ── Overlay ── */
+  --overlay-backdrop:  rgba(0,0,0,0.5);
+  --overlay-loading:   rgba(248,250,252,0.95);
+
+  /* ── Shadows (lighter for light theme) ── */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.10);
+  --shadow-md:  0 4px 24px rgba(0,0,0,0.12);
+  --shadow-lg:  0 12px 40px rgba(0,0,0,0.15);
+
+  /* ── Native browser appearance ── */
+  --color-scheme: light;
+
+  /* Legacy mappings for light theme */
+  --primary:        var(--brand-primary);
+  --primary-dark:   var(--brand-primary-hover);
+  --primary-glow:   var(--brand-primary-subtle);
+  --success:        var(--status-success);
+  --success-bg:     var(--status-success-bg);
+  --warning:        var(--status-warning);
+  --warning-bg:     var(--status-warning-bg);
+  --danger:         var(--status-danger);
+  --danger-bg:      var(--status-danger-bg);
+  --info:           var(--status-info);
+  --info-bg:        var(--status-info-bg);
+
+  --bg:             var(--bg-primary);
+  --bg-2:           var(--bg-secondary);
+  --surface:        var(--surface-primary);
+  --surface-2:      var(--surface-secondary);
+  --surface-3:      var(--surface-tertiary);
+  --border:         var(--border-primary);
+  --border-2:       var(--border-secondary);
+
+  --text:           var(--text-primary);
+  --text-muted:     var(--text-secondary);
+  --text-faint:     var(--text-tertiary);
+
+  --shadow:         var(--shadow-md);
+
+}
+
+/* Explicit dark theme (optional, for explicit control) */
+html[data-theme="dark"] {
+  --color-scheme: dark;
+}
+
+/* ── Light Theme Specific Component Adjustments ── */
+html[data-theme="light"] {
+  /* Ensure inputs are readable in light theme */
+  .form-control {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+  }
+
+  .form-control:hover {
+    border-color: var(--input-border-hover);
+    background: var(--bg-tertiary);
+  }
+
+  .form-control:focus,
+  .input-wrapper:focus-within .form-control {
+    border-color: var(--input-border-focus);
+    background: var(--bg-secondary);
+    box-shadow:
+      0 0 0 3px var(--focus-ring-shadow),
+      0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .form-control:focus + .input-icon,
+  .input-wrapper:focus-within .input-icon {
+    color: var(--brand-primary);
+  }
+
+  /* Autofill fix for light theme */
+  .form-control:-webkit-autofill,
+  .form-control:-webkit-autofill:hover,
+  .form-control:-webkit-autofill:focus {
+    box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+  }
+
+  /* Button adjustments for light theme */
+  .btn-primary {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
+    color: var(--text-on-brand);
+    box-shadow:
+      0 4px 16px var(--brand-primary-subtle),
+      0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      0 6px 20px var(--brand-primary-subtle),
+      0 3px 8px rgba(0,0,0,0.15);
+  }
+
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 3px;
+  }
+
+  .btn-secondary {
+    background: var(--surface-secondary);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:hover {
+    background: var(--surface-tertiary);
+  }
+
+  .btn-outline {
+    background: transparent;
+    border-color: var(--border-secondary);
+    color: var(--text-secondary);
+  }
+
+  .btn-outline:hover {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+  }
+
+  /* Sidebar adjustments for light theme */
+  #sidebar {
+    background: var(--sidebar-bg);
+    border-right-color: var(--sidebar-border);
+  }
+
+  .nav-item:hover {
+    background: var(--sidebar-item-hover);
+    color: var(--text-primary);
+  }
+
+  .nav-item.active {
+    background: var(--sidebar-item-active);
+    color: var(--brand-primary);
+  }
+
+  .nav-item.active::before {
+    background: var(--sidebar-item-active-border);
+  }
+
+  /* Card adjustments for light theme */
+  .card {
+    background: var(--surface-primary);
+    border-color: var(--border-primary);
+  }
+
+  .card:hover {
+    border-color: var(--border-secondary);
+  }
+
+  /* KPI Card adjustments for light theme */
+  .kpi-card {
+    background: var(--surface-primary);
+    border-color: var(--border-primary);
+  }
+
+  .kpi-card:hover {
+    border-color: var(--border-secondary);
+  }
+
+  .kpi-icon-blue   { background: var(--brand-primary-subtle); }
+  .kpi-icon-green  { background: var(--status-success-bg); }
+  .kpi-icon-yellow { background: var(--status-warning-bg); }
+  .kpi-icon-red    { background: var(--status-danger-bg); }
+  .kpi-icon-cyan   { background: var(--status-info-bg); }
+  .kpi-icon-purple { background: var(--status-info-bg); }
+
+  /* Badge adjustments for light theme */
+  .badge-success { background: var(--status-success-bg); color: var(--status-success); }
+  .badge-warning { background: var(--status-warning-bg); color: var(--status-warning); }
+  .badge-danger  { background: var(--status-danger-bg);  color: var(--status-danger); }
+  .badge-info    { background: var(--status-info-bg);    color: var(--status-info); }
+  .badge-muted   { background: rgba(0,0,0,0.06); color: var(--text-secondary); }
+  .badge-primary { background: var(--brand-primary-subtle); color: var(--brand-primary); }
+
+  /* Modal adjustments for light theme */
+  .modal {
+    background: var(--surface-primary);
+    border-color: var(--border-secondary);
+  }
+
+  .modal-close {
+    background: var(--surface-secondary);
+    border-color: var(--border-primary);
+    color: var(--text-secondary);
+  }
+
+  .modal-close:hover {
+    background: var(--status-danger-bg);
+    color: var(--status-danger);
+  }
+
+  /* Toast adjustments for light theme */
+  .toast {
+    background: var(--surface-secondary);
+    border-color: var(--border-secondary);
+    box-shadow: var(--shadow-md);
+  }
+
+  .toast.success { border-left-color: var(--status-success); }
+  .toast.warning { border-left-color: var(--status-warning); }
+  .toast.error   { border-left-color: var(--status-danger); }
+
+  /* Toast container position for light theme */
+  #toast-container {
+    bottom: 24px;
+    right: 24px;
+  }
+
+  /* Alert panel adjustments for light theme */
+  #alerts-panel {
+    background: var(--surface-primary);
+    border-left-color: var(--border-primary);
+  }
+
+  .alerts-panel-header {
+    border-bottom-color: var(--border-primary);
+  }
+
+  .alert-item {
+    background: var(--surface-secondary);
+    border-color: var(--border-primary);
+  }
+
+  .alert-item:hover {
+    border-color: var(--border-secondary);
+  }
+
+  .alert-icon-danger  { background: var(--status-danger-bg);  color: var(--status-danger); }
+  .alert-icon-warning { background: var(--status-warning-bg); color: var(--status-warning); }
+  .alert-icon-info    { background: var(--status-info-bg);    color: var(--status-info); }
+
+  /* Login page light theme adjustments */
+  #login-page .login-card {
+    background: linear-gradient(145deg, var(--surface-primary) 0%, var(--surface-secondary) 100%);
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.05),
+      0 4px 24px rgba(0,0,0,0.15),
+      0 20px 60px rgba(0,0,0,0.15);
+    border-color: var(--border-primary);
+  }
+
+  #login-page .login-brand h1 {
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  #login-page .form-control {
+    background: var(--bg-primary);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+  }
+
+  #login-page .form-control:hover {
+    border-color: var(--border-secondary);
+    background: var(--bg-tertiary);
+  }
+
+  #login-page .form-control:focus {
+    border-color: var(--brand-primary);
+    background: var(--bg-secondary);
+    box-shadow:
+      0 0 0 3px var(--brand-primary-subtle),
+      0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  #login-page .btn-primary {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
+    box-shadow:
+      0 4px 16px var(--brand-primary-subtle),
+      0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  #login-page .btn-primary:hover:not(:disabled) {
+    box-shadow:
+      0 6px 20px var(--brand-primary-subtle),
+      0 3px 8px rgba(0,0,0,0.15);
+  }
+
+  #login-page .login-footer {
+    color: var(--text-tertiary);
+  }
 }
 
 /* ── Reset ── */
@@ -1495,6 +1943,87 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 0.5; }
 .alert-item-title { font-size: 12.5px; font-weight: 600; margin-bottom: 2px; }
 .alert-item-msg   { font-size: 11.5px; color: var(--text-muted); }
 .alert-item-time  { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
+
+/* ====================================================
+   F4.6-S2 THEME TOGGLE
+   ==================================================== */
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.theme-toggle:active {
+  background: var(--surface-hover);
+}
+
+.theme-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  transition: opacity var(--transition), transform var(--transition);
+  display: block;
+}
+
+/* Dark theme: show sun icon (switch to light) */
+html[data-theme="dark"] .theme-toggle .theme-icon-sun {
+  display: block;
+}
+html[data-theme="dark"] .theme-toggle .theme-icon-moon {
+  display: none;
+}
+
+/* Light theme: show moon icon (switch to dark) */
+html[data-theme="light"] .theme-toggle .theme-icon-sun {
+  display: none;
+}
+html[data-theme="light"] .theme-toggle .theme-icon-moon {
+  display: block;
+}
+
+/* Reduced motion for theme toggle */
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle {
+    transition: none;
+  }
+}
+
+/* Responsive adjustments for theme toggle */
+@media (max-width: 480px) {
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+  }
+  .theme-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 /* ====================================================
    F4.5-S3-A2 LOGIN VISUAL OVERRIDES
    ==================================================== */
