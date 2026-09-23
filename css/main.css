@@ -1031,47 +1031,51 @@ textarea.form-control { resize: vertical; min-height: 80px; }
    ==================================================== */
 
 .table-wrapper {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   border-radius: var(--radius);
+  background: var(--surface-secondary);
+  box-shadow: var(--shadow-xs);
 }
 
-table {
+.table-wrapper table {
   width: 100%;
   border-collapse: collapse;
 }
 
-thead tr {
-  background: var(--header-bg);
-  border-bottom: 2px solid var(--border);
+.table-wrapper thead tr {
+  background: var(--table-header-bg);
+  border-bottom: 2px solid var(--table-border);
 }
 
-th {
+.table-wrapper th {
   text-align: left;
   padding: 12px 14px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--nav-text);
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
-td {
+.table-wrapper td {
   padding: 12px 14px;
   font-size: 13.5px;
-  border-bottom: 1px solid var(--sidebar-divider);
+  border-bottom: 1px solid var(--table-border);
   vertical-align: middle;
 }
 
-tbody tr {
+.table-wrapper tbody tr {
   transition: background var(--transition);
 }
 
-tbody tr:hover { background: var(--header-bg); }
+.table-wrapper tbody tr:hover { background: var(--table-row-hover); }
 
-tbody tr:last-child td { border-bottom: none; }
+.table-wrapper tbody tr:last-child td { border-bottom: none; }
 
-.table-actions { display: flex; gap: 6px; }
+.table-actions { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
 /* ====================================================
    BADGES & PILLS
@@ -1235,6 +1239,9 @@ tbody tr:last-child td { border-bottom: none; }
   gap: 10px;
   margin-bottom: 20px;
   align-items: center;
+  background: var(--surface-secondary);
+  border-radius: var(--radius);
+  padding: 8px 12px;
 }
 
 .filter-bar .form-control {
@@ -1243,9 +1250,10 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 .search-input {
-  position: relative;
   flex: 1;
   min-width: 200px;
+  max-width: 400px;
+  position: relative;
 }
 
 .search-input input {
