@@ -2,7 +2,7 @@
    DASHBOARD STYLES
    ==================================================== */
 
-/* KPI Grid */
+/* ── KPI Grid ── */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -11,11 +11,11 @@
 }
 
 .kpi-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   padding: 18px 20px;
-  transition: all var(--transition);
+  transition: border-color var(--transition), box-shadow var(--transition);
   position: relative;
   overflow: hidden;
 }
@@ -24,70 +24,109 @@
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 2px;
+  height: 3px;
 }
 
-.kpi-card.kpi-blue::before   { background: linear-gradient(90deg, var(--primary), transparent); }
-.kpi-card.kpi-green::before  { background: linear-gradient(90deg, var(--success), transparent); }
-.kpi-card.kpi-yellow::before { background: linear-gradient(90deg, var(--warning), transparent); }
-.kpi-card.kpi-red::before    { background: linear-gradient(90deg, var(--danger), transparent); }
-.kpi-card.kpi-cyan::before   { background: linear-gradient(90deg, var(--info), transparent); }
+.kpi-card.kpi-blue::before   { background: linear-gradient(90deg, var(--brand-primary), transparent); }
+.kpi-card.kpi-green::before  { background: linear-gradient(90deg, var(--status-success), transparent); }
+.kpi-card.kpi-yellow::before { background: linear-gradient(90deg, var(--status-warning), transparent); }
+.kpi-card.kpi-red::before    { background: linear-gradient(90deg, var(--status-danger), transparent); }
+.kpi-card.kpi-cyan::before   { background: linear-gradient(90deg, var(--status-info), transparent); }
 .kpi-card.kpi-purple::before { background: linear-gradient(90deg, #a855f7, transparent); }
 
 .kpi-card:hover {
-  border-color: var(--border-2);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-xs);
 }
 
 .kpi-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .kpi-icon {
-  width: 40px; height: 40px;
-  border-radius: 10px;
+  width: 36px; height: 36px;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
-.kpi-icon-blue   { background: var(--primary-glow); }
-.kpi-icon-green  { background: var(--success-bg); }
-.kpi-icon-yellow { background: var(--warning-bg); }
-.kpi-icon-red    { background: var(--danger-bg); }
-.kpi-icon-cyan   { background: var(--info-bg); }
-.kpi-icon-purple { background: rgba(168,85,247,0.12); }
+.kpi-icon-blue   { background: var(--brand-primary-subtle); color: var(--brand-primary); }
+.kpi-icon-green  { background: var(--status-success-bg); color: var(--status-success); }
+.kpi-icon-yellow { background: var(--status-warning-bg); color: var(--status-warning); }
+.kpi-icon-red    { background: var(--status-danger-bg); color: var(--status-danger); }
+.kpi-icon-cyan   { background: var(--status-info-bg); color: var(--status-info); }
+.kpi-icon-purple { background: var(--status-info-bg); color: #a855f7; }
 
 .kpi-value {
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1;
-  margin-bottom: 4px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 2px;
 }
 
-.kpi-blue   .kpi-value { color: var(--primary); }
-.kpi-green  .kpi-value { color: var(--success); }
-.kpi-yellow .kpi-value { color: var(--warning); }
-.kpi-red    .kpi-value { color: var(--danger); }
-.kpi-cyan   .kpi-value { color: var(--info); }
+.kpi-blue   .kpi-value { color: var(--brand-primary); }
+.kpi-green  .kpi-value { color: var(--status-success); }
+.kpi-yellow .kpi-value { color: var(--status-warning); }
+.kpi-red    .kpi-value { color: var(--status-danger); }
+.kpi-cyan   .kpi-value { color: var(--status-info); }
 .kpi-purple .kpi-value { color: #a855f7; }
 
 .kpi-label {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
   font-weight: 500;
+  margin-top: 4px;
 }
 
 .kpi-sub {
-  font-size: 11px;
-  color: var(--text-faint);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
   margin-top: 2px;
+  opacity: 0.8;
 }
 
-/* Charts Grid */
+/* ── Alert Summary Cards ── */
+.alert-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.alert-summary-card {
+  background: var(--surface-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  cursor: pointer;
+}
+
+.alert-summary-card:hover {
+  box-shadow: var(--shadow-xs);
+}
+
+.asc-danger  { border: 1px solid var(--status-danger); background: var(--status-danger-bg); }
+.asc-warning { border: 1px solid var(--status-warning); background: var(--status-warning-bg); }
+.asc-info    { border: 1px solid var(--status-info); background: var(--status-info-bg); }
+.asc-success { border: 1px solid var(--status-success); background: var(--status-success-bg); }
+
+.asc-icon { font-size: 20px; flex-shrink: 0; }
+.asc-info-text .asc-num   { font-size: 20px; font-weight: 700; line-height: 1; }
+.asc-info-text .asc-label { font-size: 10.5px; color: var(--text-tertiary); margin-top: 1px; }
+
+.asc-danger  .asc-num { color: var(--status-danger); }
+.asc-warning .asc-num { color: var(--status-warning); }
+.asc-info    .asc-num { color: var(--status-info); }
+.asc-success .asc-num { color: var(--status-success); }
+
+/* ── Chart Grid ── */
 .charts-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -103,27 +142,31 @@
 }
 
 .chart-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   padding: 16px;
 }
 
 .chart-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .chart-title {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .chart-subtitle {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
 }
 
 .chart-canvas-wrapper {
@@ -134,7 +177,7 @@
 .chart-canvas-wrapper.tall { height: 240px; }
 .chart-canvas-wrapper.sm   { height: 180px; }
 
-/* Equipment ranking table */
+/* ── Ranking Items ── */
 .ranking-table {
   width: 100%;
 }
@@ -143,40 +186,40 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .ranking-item:last-child { border-bottom: none; }
 
 .rank-num {
-  width: 24px; height: 24px;
+  width: 22px; height: 22px;
   border-radius: 50%;
-  background: var(--surface-2);
+  background: var(--surface-tertiary);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
 .rank-num.top3 {
-  background: var(--warning-bg);
-  color: var(--warning);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
 }
 
 .rank-info { flex: 1; min-width: 0; }
-.rank-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank-code { font-size: 11px; color: var(--text-muted); }
+.rank-name { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
+.rank-code { font-size: 10.5px; color: var(--text-tertiary); }
 
 .rank-cost {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
   text-align: right;
 }
 
-/* Alert summary cards */
+/* ── Alert Summary Cards ── */
 .alert-summary-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -185,70 +228,73 @@
 }
 
 .alert-summary-card {
-  border-radius: var(--radius);
-  padding: 16px;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  transition: all var(--transition);
+  gap: 12px;
+  transition: border-color var(--transition), box-shadow var(--transition);
   cursor: pointer;
 }
 
-.alert-summary-card:hover { transform: translateY(-2px); }
+.alert-summary-card:hover {
+  box-shadow: var(--shadow-xs);
+}
 
-.asc-danger  { background: var(--danger-bg);  border: 1px solid rgba(239,68,68,0.2); }
-.asc-warning { background: var(--warning-bg); border: 1px solid rgba(245,158,11,0.2); }
-.asc-info    { background: var(--info-bg);    border: 1px solid rgba(6,182,212,0.2); }
-.asc-success { background: var(--success-bg); border: 1px solid rgba(16,185,129,0.2); }
+.asc-danger  { border: 1px solid var(--status-danger); background: var(--status-danger-bg); }
+.asc-warning { border: 1px solid var(--status-warning); background: var(--status-warning-bg); }
+.asc-info    { border: 1px solid var(--status-info); background: var(--status-info-bg); }
+.asc-success { border: 1px solid var(--status-success); background: var(--status-success-bg); }
 
-.asc-icon { font-size: 24px; }
-.asc-info-text .asc-num   { font-size: 24px; font-weight: 800; }
-.asc-info-text .asc-label { font-size: 11px; color: var(--text-muted); }
+.asc-icon { font-size: 20px; flex-shrink: 0; }
+.asc-info-text .asc-num   { font-size: 20px; font-weight: 700; line-height: 1; }
+.asc-info-text .asc-label { font-size: 10.5px; color: var(--text-tertiary); margin-top: 1px; }
 
-.asc-danger  .asc-num { color: var(--danger); }
-.asc-warning .asc-num { color: var(--warning); }
-.asc-info    .asc-num { color: var(--info); }
-.asc-success .asc-num { color: var(--success); }
+.asc-danger  .asc-num { color: var(--status-danger); }
+.asc-warning .asc-num { color: var(--status-warning); }
+.asc-info    .asc-num { color: var(--status-info); }
+.asc-success .asc-num { color: var(--status-success); }
 
 /* Semaphore colors for financial KPIs */
-.sem-blue   { background: var(--primary); box-shadow: 0 0 6px var(--primary); }
+.sem-blue   { background: var(--brand-primary); box-shadow: 0 0 6px var(--brand-primary); }
 .sem-purple { background: #a855f7; box-shadow: 0 0 6px #a855f7; }
 
-/* Progress bars */
+/* ── Progress Bars ── */
 .progress-bar-wrap {
   width: 100%;
-  height: 6px;
-  background: var(--surface-3);
+  height: 5px;
+  background: var(--surface-tertiary);
   border-radius: 999px;
   overflow: hidden;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .progress-bar-fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 1s ease;
+  transition: width 0.6s ease;
 }
 
-.pb-blue   { background: var(--primary); }
-.pb-green  { background: var(--success); }
-.pb-yellow { background: var(--warning); }
-.pb-red    { background: var(--danger); }
+.pb-blue   { background: var(--brand-primary); }
+.pb-green  { background: var(--status-success); }
+.pb-yellow { background: var(--status-warning); }
+.pb-red    { background: var(--status-danger); }
 
-/* Equipment availability list */
-.avail-list { display: flex; flex-direction: column; gap: 12px; }
+/* ── Availability List ── */
+.avail-list { display: flex; flex-direction: column; gap: 10px; }
 
 .avail-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.avail-name { font-size: 12.5px; font-weight: 500; width: 120px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avail-name { font-size: 12px; font-weight: 500; width: 110px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
 .avail-bar  { flex: 1; }
-.avail-pct  { font-size: 12px; font-weight: 700; width: 42px; text-align: right; flex-shrink: 0; }
+.avail-pct  { font-size: 11.5px; font-weight: 700; width: 38px; text-align: right; flex-shrink: 0; }
 
-/* Financial ranking grid container */
+/* ── Financial Ranking Grid ── */
 .financial-ranking-grid {
   grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
   gap: 20px;
@@ -260,99 +306,100 @@
   display: grid;
   grid-template-columns: auto minmax(90px, 0.8fr) minmax(0, 1.5fr) minmax(125px, auto);
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .ranking-item.financial.annual:last-child { border-bottom: none; }
 
 .ranking-item.financial.annual .rank-num {
-  width: 24px; height: 24px;
+  width: 22px; height: 22px;
   border-radius: 50%;
-  background: var(--surface-2);
+  background: var(--surface-tertiary);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
 .ranking-item.financial.annual .rank-num.top3 {
-  background: var(--warning-bg);
-  color: var(--warning);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
 }
 
 .ranking-item.financial.annual .rank-asset {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 
 .ranking-item.financial.annual .rank-name {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-primary);
 }
 
 .ranking-item.financial.annual .rank-period-label {
   font-size: 10px;
-  color: var(--text-faint);
+  color: var(--text-tertiary);
 }
 
 .ranking-item.financial.annual .rank-breakdown {
   display: flex;
-  gap: 16px;
+  gap: 14px;
   align-items: center;
 }
 
 .ranking-item.financial.annual .rank-component {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .ranking-item.financial.annual .rank-component-label {
   font-size: 10px;
-  color: var(--text-faint);
+  color: var(--text-tertiary);
   font-weight: 500;
 }
 
 .ranking-item.financial.annual .rank-component-value {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
 .ranking-item.financial.annual .rank-preventive .rank-component-value {
-  color: var(--success);
+  color: var(--status-success);
 }
 
 .ranking-item.financial.annual .rank-corrective .rank-component-value {
-  color: var(--danger);
+  color: var(--status-danger);
 }
 
 .ranking-item.financial.annual .rank-total {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 1px;
   text-align: right;
   min-width: 0;
 }
 
 .ranking-item.financial.annual .rank-total-label {
   font-size: 10px;
-  color: var(--text-faint);
+  color: var(--text-tertiary);
   font-weight: 500;
 }
 
 .ranking-item.financial.annual .rank-cost {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
@@ -379,60 +426,63 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .rank-preventive {
-  color: var(--success);
+  color: var(--status-success);
   font-weight: 600;
 }
 
 .rank-corrective {
-  color: var(--danger);
+  color: var(--status-danger);
   font-weight: 600;
 }
 
 .rank-separator {
-  color: var(--text-faint);
+  color: var(--text-tertiary);
 }
 
-/* Average cost card */
+/* ── Average Cost Card ── */
 .avg-cost-card {
   text-align: center;
   padding: 14px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
 }
 
 .avg-cost-value {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--primary);
-  line-height: 1;
-  margin-bottom: 8px;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--brand-primary);
+  line-height: 1.1;
+  margin-bottom: 6px;
 }
 
 .avg-cost-sub {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
-/* Coverage notice */
+/* ── Coverage Notice ── */
 .coverage-notice {
-  background: var(--warning-bg);
-  border: 1px solid rgba(245,158,11,0.3);
-  border-radius: var(--radius);
-  padding: 12px 16px;
-  font-size: 12px;
-  color: var(--warning);
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 11.5px;
+  color: var(--status-warning);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.coverage-icon { font-size: 14px; }
+.coverage-icon { font-size: 13px; }
 .coverage-label { font-weight: 600; }
-.coverage-details { color: var(--text-muted); }
+.coverage-details { color: var(--text-tertiary); }
 
-/* Filter bar */
+/* ── Filter Bar ── */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;

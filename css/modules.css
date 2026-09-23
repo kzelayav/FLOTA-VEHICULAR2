@@ -10,39 +10,39 @@
 }
 
 .asset-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
-  transition: all var(--transition);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: border-color var(--transition), box-shadow var(--transition);
   position: relative;
   overflow: hidden;
 }
 
 .asset-card:hover {
-  border-color: var(--border-2);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-xs);
 }
 
 .asset-card-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .asset-type-icon {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  background: var(--primary-glow);
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: var(--brand-primary-subtle);
+  color: var(--brand-primary);
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 
-.asset-code { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
-.asset-name { font-size: 15px; font-weight: 700; margin-top: 1px; }
+.asset-code { font-size: 10.5px; color: var(--text-tertiary); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.asset-name { font-size: 14px; font-weight: 600; margin-top: 1px; color: var(--text-primary); }
 
 .asset-card-status {
   margin-left: auto;
@@ -51,24 +51,24 @@
 .asset-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .asset-meta-item { }
-.asset-meta-label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
-.asset-meta-value { font-size: 13px; font-weight: 500; color: var(--text); margin-top: 2px; }
+.asset-meta-label { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+.asset-meta-value { font-size: 12.5px; font-weight: 500; color: var(--text-primary); margin-top: 1px; }
 
 .asset-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  border-top: 1px solid var(--border-primary);
 }
 
-.meter-info { font-size: 12px; color: var(--text-muted); }
-.meter-value { font-size: 14px; font-weight: 700; color: var(--primary); }
+.meter-info { font-size: 11.5px; color: var(--text-tertiary); }
+.meter-value { font-size: 13.5px; font-weight: 700; color: var(--brand-primary); }
 
 /* ── Maintenance Timeline ── */
 .maint-timeline {
@@ -141,98 +141,98 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 13px;
 }
 
 .cost-row:last-child { border-bottom: none; }
 
-.cost-category { display: flex; align-items: center; gap: 10px; color: var(--text-muted); }
-.cost-cat-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-.cost-amount   { font-weight: 700; }
+.cost-category { display: flex; align-items: center; gap: 8px; color: var(--text-tertiary); }
+.cost-cat-icon { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify_content: center; font-size: 13px; }
+.cost-amount   { font-weight: 700; color: var(--text-primary); }
 
 /* ── Expense categories ── */
 .expense-category-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
+  gap: 5px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all var(--transition);
 }
 
 .expense-category-pill.active {
-  background: var(--primary-glow);
-  border-color: var(--primary);
-  color: var(--primary);
+  background: var(--brand-primary-subtle);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
 }
 
 .expense-category-pill:hover:not(.active) {
-  background: var(--surface-3);
+  background: var(--surface-tertiary);
 }
 
-/* ── Work order card ── */
+/* ── Work Order Card ── */
 .wo-card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
-  padding: 14px;
-  margin-bottom: 12px;
-  transition: all var(--transition);
+  padding: 12px;
+  margin-bottom: 10px;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
-.wo-card:hover { border-color: var(--border-2); }
+.wo-card:hover { border-color: var(--border-secondary); box-shadow: var(--shadow-xs); }
 
 .wo-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
-.wo-num { font-size: 11px; color: var(--text-muted); font-weight: 600; }
-.wo-title { font-size: 14px; font-weight: 600; flex: 1; }
+.wo-num { font-size: 10.5px; color: var(--text-tertiary); font-weight: 600; }
+.wo-title { font-size: 13.5px; font-weight: 600; flex: 1; color: var(--text-primary); }
 
 .wo-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 10px;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
 }
 
 .wo-meta span { display: flex; align-items: center; gap: 4px; }
 
 .wo-costs {
   display: flex;
-  gap: 16px;
-  padding: 10px;
-  background: var(--surface);
+  gap: 12px;
+  padding: 8px;
+  background: var(--surface-secondary);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .wo-cost-item { display: flex; flex-direction: column; }
-.wo-cost-label { color: var(--text-faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
-.wo-cost-val   { font-size: 14px; font-weight: 700; margin-top: 2px; }
+.wo-cost-label { color: var(--text-tertiary); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.wo-cost-val   { font-size: 13.5px; font-weight: 700; margin-top: 1px; color: var(--text-primary); }
 
 /* ── Reports ── */
-.report-section { margin-bottom: 24px; }
+.report-section { margin-bottom: 20px; }
 .report-section-title {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: var(--text);
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 /* ── Audit log ── */
@@ -254,14 +254,14 @@
 .stock-indicator {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11.5px;
 }
 
 .stock-bar {
   flex: 1;
-  height: 4px;
-  background: var(--surface-3);
+  height: 3px;
+  background: var(--surface-tertiary);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -364,14 +364,15 @@
 /* ── Stat summary row ── */
 .summary-stats {
   display: flex;
-  gap: 20px;
-  padding: 16px;
-  background: var(--surface-2);
-  border-radius: var(--radius);
-  margin-bottom: 20px;
+  gap: 16px;
+  padding: 14px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .summary-stat { text-align: center; }
-.summary-stat-val { font-size: 22px; font-weight: 800; }
-.summary-stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.summary-stat-val { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.summary-stat-lbl { font-size: 10.5px; color: var(--text-tertiary); margin-top: 1px; }
