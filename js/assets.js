@@ -209,9 +209,9 @@ const AssetsModule = {
             ${page.map(a=>{
               const isSel = sel && a.id===sel.id;
               return `
-            <tr class="assets-table-row${isSel?' assets-v2-selected':''}">
+            <tr class="assets-table-row${isSel?' assets-v2-selected':''}" tabindex="0" aria-selected="${isSel?'true':'false'}" aria-label="Seleccionar activo ${a.code}" onclick="AssetsModule.selectAsset('${a.id}')" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();AssetsModule.selectAsset('${a.id}')}">
               <td><span class="semaphore ${a.status==='operativo'?'sem-green':a.status==='mantenimiento'?'sem-yellow':'sem-red'}" aria-hidden="true"></span></td>
-              <td><button class="assets-v2-select" aria-pressed="${isSel?'true':'false'}" aria-label="Seleccionar activo ${a.code}" title="Seleccionar ${a.code}" onclick="AssetsModule.selectAsset('${a.id}')"><strong class="assets-code-emphasis">${a.code}</strong></button></td>
+              <td><button class="assets-v2-select" aria-pressed="${isSel?'true':'false'}" aria-label="Seleccionar activo ${a.code}" title="Seleccionar ${a.code}" onclick="event.stopPropagation();AssetsModule.selectAsset('${a.id}')"><strong class="assets-code-emphasis">${a.code}</strong></button></td>
               <td><span aria-hidden="true">${getAssetIcon(a.type)}</span> ${a.type}</td>
               <td><span class="assets-brand">${a.brand}</span> <span class="assets-model">${a.model}</span></td>
               <td>${a.year}</td>
@@ -225,9 +225,9 @@ const AssetsModule = {
               <td class="text-sm">${a.currentKm>0?fmtKm(a.currentKm):''}${a.currentHours>0?fmtHours(a.currentHours):''}</td>
               <td>
                 <div class="table-actions assets-action-group">
-                  <button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.viewDetail('${a.id}')" title="Ver detalle" aria-label="Ver detalle de ${a.code}">👁️</button>
-                  ${canEdit?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.openModal('${a.id}')" title="Editar" aria-label="Editar ${a.code}">✏️</button>`:''}
-                  ${Auth.isAdmin()?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.deleteAsset('${a.id}')" title="Eliminar" aria-label="Eliminar ${a.code}">🗑️</button>`:''}
+                  <button class="btn btn-outline btn-icon btn-sm" onclick="event.stopPropagation();AssetsModule.viewDetail('${a.id}')" title="Ver detalle" aria-label="Ver detalle de ${a.code}">👁️</button>
+                  ${canEdit?`<button class="btn btn-outline btn-icon btn-sm" onclick="event.stopPropagation();AssetsModule.openModal('${a.id}')" title="Editar" aria-label="Editar ${a.code}">✏️</button>`:''}
+                  ${Auth.isAdmin()?`<button class="btn btn-outline btn-icon btn-sm" onclick="event.stopPropagation();AssetsModule.deleteAsset('${a.id}')" title="Eliminar" aria-label="Eliminar ${a.code}">🗑️</button>`:''}
                 </div>
               </td>
             </tr>`;}).join('')}
