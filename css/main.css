@@ -2698,3 +2698,112 @@ color: var(--nav-text);
     animation: none;
   }
 }
+
+/* ====================================================
+   LOGIN ALIGNMENT HOTFIX — desktop scale and spacing.
+   Visual only. IDs, auth and animation contracts kept.
+   ==================================================== */
+
+/* Safe vertical scrolling on short viewports */
+#login-page {
+  overflow-y: auto;
+}
+
+@media (min-width: 769px) {
+  /* Wider split container with content-driven minimum height */
+  #login-page .login-split {
+    max-width: 1080px;
+    min-height: 580px;
+  }
+
+  /* Panel proportions: 56% branding / 44% form */
+  #login-page .login-brand-panel {
+    flex-basis: 56%;
+    padding: 48px 44px;
+    gap: 18px;
+  }
+
+  #login-page .login-form-panel {
+    flex-basis: 44%;
+  }
+
+  /* Branding typography scale */
+  #login-page .login-brand-panel h1 {
+    font-size: 32px;
+  }
+
+  #login-page .login-hero {
+    font-size: 16.5px;
+  }
+
+  #login-page .login-brand-desc {
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+
+  #login-page .login-capabilities {
+    font-size: 14px;
+    gap: 13px;
+  }
+
+  #login-page .login-capabilities li {
+    gap: 12px;
+  }
+
+  #login-page .login-brand-note {
+    font-size: 12.5px;
+  }
+
+  /* Form card breathing room */
+  #login-page .login-form-panel .login-card {
+    max-width: 380px;
+  }
+
+  /* Form heading hierarchy */
+  #login-page .login-header {
+    margin-bottom: 32px;
+  }
+
+  #login-page .login-header h2 {
+    font-size: 27px;
+    line-height: 1.25;
+  }
+
+  #login-page .login-header p {
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+
+  /* Field rhythm: label gap inside groups, group gap between fields */
+  #login-page #login-form {
+    gap: 22px;
+  }
+
+  #login-page .form-group {
+    gap: 0;
+  }
+
+  #login-page .form-label {
+    display: block;
+    font-size: 13.5px;
+    margin: 0 0 8px;
+  }
+
+  #login-page .form-error:not(:empty) {
+    margin-top: 6px;
+  }
+
+  /* Input presence */
+  #login-page .form-control {
+    height: 50px;
+    font-size: 14.5px;
+    padding: 13px 48px 13px 16px;
+  }
+
+  /* Submit presence with separation from the password group */
+  #login-page .btn-primary {
+    height: 51px;
+    font-size: 14.5px;
+    margin-top: 4px;
+  }
+}

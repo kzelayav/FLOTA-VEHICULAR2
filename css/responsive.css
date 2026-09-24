@@ -255,7 +255,7 @@
 /* Tablet landscape and small desktop: narrower split, fewer beans */
 @media (max-width: 1024px) {
   #login-page .login-split {
-    max-width: 860px;
+    max-width: min(920px, 94vw);
   }
 
   #login-page .login-brand-panel {
@@ -287,6 +287,7 @@
   #login-page .login-split {
     flex-direction: column;
     max-width: 480px;
+    min-height: 0;
   }
 
   #login-page .login-brand-panel {
@@ -333,7 +334,7 @@
 /* Small mobile: minimal branding, subtle beans */
 @media (max-width: 430px) {
   #login-page {
-    padding: 12px;
+    padding: 16px;
   }
 
   #login-page .login-brand-panel {
