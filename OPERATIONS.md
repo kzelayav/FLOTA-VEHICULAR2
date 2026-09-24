@@ -42,17 +42,31 @@ La aplicación **NO administra usuarios desde la interfaz**. Toda la gestión se
    ✅ Production / Current
 ```
 
+### Secuencia Operativa Aceptada
+1. Revisión estática
+2. Staging selectivo
+3. Commit controlado
+4. Push a origin/main
+5. Build y despliegue en Vercel
+6. Validación funcional en la aplicación desplegada
+
+- El propietario no usa pruebas locales o de vista previa como puerta de aceptación.
+- La validación local con npm solo se ejecuta cuando Node.js ya está disponible; no se instala Node.js solo para una puerta del proyecto.
+- **Vercel es el entorno oficial de validación y despliegue de JavaScript.**
+- La aceptación de runtime ocurre después de commit y push. No se exige prueba local en navegador.
+
 ### Validación Antes del Push
 ```bash
 git status --short
 git diff --name-only
 git diff --cached --name-only
 
-# Validar sintaxis
+# Validar sintaxis (solo si Node.js ya está disponible)
 node --check js/reports.js
 node --check js/alerts.js
 node --check js/auth.js
 node --check js/data.js
+node --check js/expenses.js
 
 # Validación completa (si npm disponible)
 npm.cmd run validate
@@ -98,17 +112,24 @@ git push origin main
 ### Proceso
 1. **Admin** → Módulo **Activos** → **Importar Excel**
 2. Seleccionar archivo → **Validar** (revisa encabezados, requeridos, duplicados internos)
-3. **Vista previa** → Revisar resumen (nuevos, duplicados, errores)
-6. **Confirmar** → Upsert masivo (`onConflict: 'id'`)
-7. **Auditoría**: Registro `IMPORT_ACTIVOS` con conteos
-8. **Recarga**: `DB.loadOperationalData()` automática
-9. Verificar: Conteos, auditoría `IMPORT_ACTIVOS`, Console limpio
+3. **Vista previa** → Revisar resumen (nuevos, actualizaciones, errores bloqueantes)
+4. Límite: máximo 500 filas no vacías
+5. Las filas existentes se clasifican como actualización por ID preservado; las nuevas reciben ID
+6. **Confirmar** → `DB.bulkAddAssets` (upsert masivo `onConflict: 'id'`)
+7. **Orden seguro**: persistencia Supabase antes de reconciliación de caché (sin filas fantasma ante fallo)
+8. **Recarga**: `DB.loadOperationalData()` autoritativa tras persistencia exitosa
+9. **Auditoría**: Registro `IMPORT_ACTIVOS` con conteos, solo tras persistencia exitosa
+10. **Éxito total**: toast de éxito, vista actualizada, modal cerrado
+11. **Fallo de persistencia**: toast de error veraz (nada guardado), modal abierto, reintento permitido
+12. **Éxito parcial** (persistencia confirmada + fallo de recarga): advertencia veraz, `DB.reconcileImportedAssets`, botón bloqueado; recargar y verificar antes de cualquier reintento; prohibido reconfirmar a ciegas
+13. Verificar: Conteos, auditoría `IMPORT_ACTIVOS`, Console limpio
 
 ### Validaciones
 - ✅ Headers requeridos presentes
 - ✅ Campos obligatorios no vacíos
 - ✅ Códigos únicos (internos y vs BD)
 - ✅ Tipos válidos (numéricos, fechas)
+- ✅ Máximo 500 filas no vacías
 - ❌ No sobrescribir existentes sin regla aprobada (usa `onConflict: 'id'`)
 
 ## 4. Respaldo y Recuperación
@@ -158,31 +179,36 @@ psql ... -c "SELECT COUNT(*) FROM public.activos; SELECT COUNT(*) FROM public.ma
 - ✅ Respaldos sensibles fuera del repo, no en OneDrive/correo/mensajería sin cifrar
 - ✅ Documentar hash, fecha, conteo, retención
 
-## 5. Importación de Excel (Detalle Operativo)
+## 5. Operación de Gastos (admin y supervisor)
 
-Ver sección **4. Importación de Excel (Activos)** arriba.
+Solo admin y supervisor ven el módulo **Gastos** (navegación bajo Gestión). Tecnico y consulta no tienen acceso.
 
-## 5. Respaldo y Recuperación (Detalle)
+1. **Crear**: Gastos → Registrar Gasto → completar Fecha y Monto (obligatorios) → Guardar (el botón se bloquea durante la persistencia)
+2. **Editar**: fila → ✏️ → modificar → Guardar (el ID existente se preserva)
+3. **Eliminar**: fila → 🗑️ (solo admin/supervisor) → confirmar → eliminación persistida
+4. **Filtros**: activo, planta, mes, año; pills por categoría; resumen del mes/año/histórico
+5. **Persistencia antes del éxito**: el mensaje de éxito aparece solo tras persistencia confirmada
+6. **Auditoría**: CREATE/UPDATE/DELETE tras persistencia exitosa; sin auditoría de éxito ante fallo
+7. **Doble envío**: protegido por bloqueo de botón y guardas internas; sin reintento automático
+8. **Éxito parcial**: advertencia veraz; recargar o reabrir Gastos antes de reintentar; no reenviar el formulario
+9. **Error**: toast de error, modal abierto, valores conservados, reintento permitido
+10. Dashboard no incluye Gastos; Reportes no incluye Gastos (alcance opcional separado, no autorizado)
 
-Ver sección **4. Respaldo y Recuperación** arriba.
-
-## 6. Recuperación Segura
-
-Ver sección **4. Recuperación Segura (Disaster Recovery)** arriba.
-
-## 7. Auditoría
+## 6. Auditoría
 
 ### Eventos Registrados
 | Acción | Código | Detalle típico |
 |---|---|---|
-| Login | `LOGIN` | `Inicio de sesión supabase` |
 | Logout | `LOGOUT` | `Cierre de sesión supabase` |
-| Crear | `CREATE` | `Activo creado: COD-001` |
-| Actualizar | `UPDATE` | `Activo actualizado: COD-001` |
-| Eliminar | `DELETE` | `Alerta eliminada: Cambio de aceite — ACT-001` |
+| Crear | `CREATE` | `Activo creado: COD-001` (incluye Gastos tras persistencia) |
+| Actualizar | `UPDATE` | `Activo actualizado: COD-001` (incluye Gastos tras persistencia) |
+| Eliminar | `DELETE` | `Alerta eliminada: Cambio de aceite — ACT-001` (incluye Gastos tras persistencia) |
+| Completar | `COMPLETE` | `Correctivo reparado: COD-001` |
 | Configuración | `SETTINGS` | `Configuración guardada` |
-| Importar | `IMPORT_ACTIVOS` | `12 activos importados, 0 duplicados` |
-| Migración | `MIGRATE` | `Migración LocalStorage → Supabase completada` |
+| Importar | `IMPORT_ACTIVOS` | `Importación finalizada: nuevos N, actualizados M, rechazados 0` |
+| Migración | `MIGRATE` | Histórico, evento único (`Migración LocalStorage → Supabase completada`) |
+
+LOGIN no está implementado y no forma parte de los eventos activos. Los escritos fallidos no generan auditoría de éxito.
 
 ### Consultar Auditoría
 ```sql
@@ -196,7 +222,7 @@ SELECT * FROM public.auditoria WHERE user_name = 'Juan Pérez' ORDER BY ts DESC;
 SELECT * FROM public.auditoria WHERE action = 'DELETE' ORDER BY ts DESC;
 ```
 
-## 10. Manejo de Incidentes
+## 7. Manejo de Incidentes
 
 ### Error de Despliegue (Vercel)
 1. Revisar logs en Vercel Dashboard → Functions / Build Logs
@@ -220,7 +246,7 @@ SELECT * FROM public.auditoria WHERE action = 'DELETE' ORDER BY ts DESC;
 3. Commit + push → deployment automático
 4. Invalidar sesiones: Auth → Users → Log out all sessions
 
-## 11. Revisión de KPI (Mensual)
+## 8. Revisión de KPI (Mensual)
 
 Ejecutar en módulo **Reportes** → **KPIs** o consultar `DB.calcKPIs()` en Console:
 
@@ -233,7 +259,7 @@ Ejecutar en módulo **Reportes** → **KPIs** o consultar `DB.calcKPIs()` en Con
 | Gastos Mes | > Presupuesto | Revisar gastos por categoría/activo |
 | Mantenimientos Vencidos | > 5 | Generar alertas / reprogramar |
 
-## 11. Validaciones de Seguridad (Checklist)
+## 9. Validaciones de Seguridad (Checklist)
 
 Ejecutar búsquedas periódicas en código versionado:
 
@@ -262,7 +288,7 @@ grep -r "password.*legacy\|password.*texto plano" --include="*.js" --include="*.
 
 **Resultado obligatorio**: Cero coincidencias operativas (solo historial/documentación)
 
-## 12. Retención Respaldo Sensible F2G
+## 10. Retención Respaldo Sensible F2G
 
 | Ítem | Valor |
 |---|---|
@@ -275,29 +301,34 @@ grep -r "password.*legacy\|password.*texto plano" --include="*.js" --include="*.
 | **Eliminación** | `shred -n 3 archivo.sql` o eliminación segura autorizada |
 | **Registro** | Bitácora con fecha, hash, responsable, autorización |
 
-## 13. Checklist Pre-Deploy
+**Estado actual**: F2H-D está en pausa porque los requisitos de retención o evidencia permanecen incompletos. El repositorio no contiene ningún respaldo sensible versionado; la existencia externa del respaldo no fue verificada por la auditoría de documentación; el período de 30 días no ha sido probado. **No se autoriza ninguna eliminación.** Toda eliminación futura requiere autorización explícita del propietario con evidencia registrada. F2H-D es independiente de esta actualización documental.
+
+## 11. Checklist Pre-Deploy
 
 ```bash
 # 1. Estado Git
 git status --short                    # Solo archivos intencionales
 git diff --cached --name-only         # Solo archivos intencionados
 
-# 2. Sintaxis
+# 2. Sintaxis (solo si Node.js ya está disponible; Vercel es el entorno oficial)
 node --check js/reports.js
 node --check js/alerts.js
 node --check js/auth.js
 node --check js/data.js
+node --check js/expenses.js
 
 # 3. Validación (si npm)
 npm.cmd run validate
 
-# 3. Commit selectivo
+# 4. Commit selectivo
 git add archivo1 archivo2
 git commit -m "tipo: descripción"
 git push origin main
+
+# 5. Validación en la aplicación desplegada (Vercel)
 ```
 
-## 13. Contactos y Escalación
+## 12. Contactos y Escalación
 
 | Problema | Contacto | SLA |
 |---|---|---|
@@ -309,5 +340,4 @@ git push origin main
 ---
 
 **Documento**: OPERATIONS.md  
-**Versión**: 1.0 (baseline `338a0b4`)  
-**Actualizado**: 2026-08-31
+**Versión**: 1.1 (baseline `c45c46c`: F-01 cerrado en `0ff9426`, F-02 cerrado en `c45c46c`, F2H-C cerrada, F2H-D en pausa)

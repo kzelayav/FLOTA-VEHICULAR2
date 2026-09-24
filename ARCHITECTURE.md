@@ -27,15 +27,14 @@ Aplicación interna de gestión de flota vehicular con arquitectura **Supabase-F
 
 ### Frontend (JavaScript Vanilla ES6+)
 - **Arquitectura modular**: Módulos por funcionalidad (`js/*.js`)
-- **Capa de datos**: `DB` (caché en memoria y Supabase, sin fallback a LocalStorage)
+- **Capa de datos**: `DB` (caché en memoria y Supabase; Supabase es la fuente operativa autoritativa normal; permanece código histórico de respaldo LocalStorage en la capa de datos, que el flujo Supabase desplegado no usa como fuente autoritativa normal)
 - **Autenticación**: `Auth` (solo Supabase Auth, sin legacy)
 - **Módulos**: Dashboard, Activos, Preventivos, Correctivos, Gastos, Documentos, Alertas, Conductores, Vehículos, Reportes, Auditoría, Configuración
 
 ### Backend (Supabase)
 - **PostgreSQL** con Row Level Security (RLS)
 - **Supabase Auth** para autenticación (email/password, JWT)
-- **Triggers** para sincronización `auth.users` ↔ `public.profiles`
-- **Triggers** `updated_at` automático en tablas operativas
+- **Triggers**: `trg_profiles_updated_at` en `public.profiles` (probado por `supabase/schema.sql`); la creación automática de perfiles (`on_auth_user_created`) es configuración operativa del Supabase Dashboard — el repositorio actual no prueba directamente el estado desplegado de ese trigger
 
 ## 3. Flujo de Autenticación
 
@@ -95,7 +94,7 @@ Tabla central de autorización (1:1 con `auth.users`):
 
 **Trigger**: `trg_profiles_updated_at` → actualiza `updated_at` en UPDATE
 
-**Trigger Auth**: `on_auth_user_created` → crea profile automático al registrarse en Auth
+**Trigger Auth**: `on_auth_user_created` → crea profile automático al registrarse en Auth (configuración operativa del Supabase Dashboard; no probado directamente por el SQL versionado)
 
 ## 5. Row Level Security (RLS)
 
@@ -112,10 +111,8 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 | `documentos` | todos autenticados | — | — | — | — |
 | `configuracion` | todos autenticados | admin | admin | — | admin |
 | `auditoria` | admin | todos autenticados | — | admin | admin |
-| `gastos` | admin, supv, tec, cons | admin, supv, tec | admin, supv, tec | admin, supv | admin, supv |
-| `alertas` | admin, supv, tec, cons | admin, supv, tec | admin, supv, tec | admin, supv, tec | admin, supv, tec |
 
-**Principio**: RLS es la **última barrera**; UI y handlers validan antes, pero RLS es la barrera final.
+**Principio**: RLS es la **última barrera**; UI y handlers validan antes, pero RLS es la barrera final. La visibilidad del frontend y las capacidades RLS son contratos separados: el frontend puede exponer menos de lo que RLS permite, sin que ello requiera modificar RLS.
 
 ## 5. Matriz Final de Permisos (Operación por Operación)
 
@@ -135,13 +132,23 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 | tecnico | ✅ | ✅ | ✅ | ❌ |
 | consulta | ✅ | ❌ | ❌ | ❌ |
 
-### GASTOS
+### GASTOS (aplicación / frontend — F-02 vigente desde `c45c46c`)
+| Rol | Visible | Leer | Crear | Actualizar | Eliminar |
+|---|---|---|---|---|---|
+| admin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| supervisor | ✅ | ✅ | ✅ | ✅ | ✅ |
+| tecnico | ❌ | ❌ | ❌ | ❌ | ❌ |
+| consulta | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+### GASTOS (RLS / base de datos — sin cambios)
 | Rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | admin | ✅ | ✅ | ✅ | ✅ |
 | supervisor | ✅ | ✅ | ✅ | ✅ |
 | tecnico | ✅ | ✅ | ✅ | ❌ |
 | consulta | ✅ | ❌ | ❌ | ❌ |
+
+**Nota**: la matriz de aplicación limita intencionalmente Gastos a admin y supervisor (F-02). La matriz RLS permanece sin cambios y puede permitir operaciones más amplias; RLS es el respaldo final de base de datos y no requiere modificación por el alcance del frontend.
 
 ### ALERTAS
 | Rol | SELECT | INSERT | UPDATE | DELETE |
@@ -191,7 +198,7 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 - El rol `tecnico` fue validado estáticamente contra código y RLS
 - La validación funcional completa del rol `tecnico` está pendiente (no existe cuenta operativa activa)
 - `Auth.can(module)` controla **navegación** (acceso a módulos UI)
-- `Auth.canDelete(resource)` controla **operaciones DELETE** (alertas, maintenance)
+- `Auth.canDelete(resource)` controla **operaciones DELETE** (alertas, maintenance, expenses; expenses limitado a admin y supervisor)
 - RLS continúa siendo la **última barrera** de autorización
 - Sin sesión: ninguna operación permitida en tablas operativas
 
@@ -205,7 +212,7 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 | `mantenimientos` | Mantenimientos | Preventivos (`tipo='preventivo'`) y Correctivos (`tipo='correctivo'`) |
 | `alertas` | Alertas | Snapshots de alertas generadas por km/horas |
 | `documentos` | Documentos | Archivos asociados a activos |
-| `auditoria` | Auditoría | Log inmutable de acciones (LOGIN, LOGOUT, CRUD) |
+| `auditoria` | Auditoría | Log de acciones (LOGOUT, CREATE, UPDATE, DELETE, COMPLETE, SETTINGS, IMPORT_ACTIVOS; LOGIN no implementado) |
 | `gastos` | Gastos | Costos operativos por activo/categoría |
 | `configuracion` | Configuración | Single-row (`id='default'`): moneda, formato fecha, días alerta |
 | `profiles` | Perfiles | Vinculado a `auth.users` (FK + trigger) |
@@ -241,10 +248,12 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 **Tabla**: `public.auditoria` (append-only, inmutable)
 
 **Eventos registrados**:
-- `LOGIN` / `LOGOUT` (con detail: "Inicio de sesión supabase" / "Cierre de sesión supabase")
-- `CREATE` / `UPDATE` / `DELETE` en entidades operativas
+- `LOGOUT` (con detail: "Cierre de sesión supabase"; LOGIN no implementado)
+- `CREATE` / `UPDATE` / `DELETE` en entidades operativas (incluye Gastos tras persistencia exitosa)
+- `COMPLETE` (reparaciones correctivas)
 - `SETTINGS` (cambios de configuración)
-- `MIGRATE` (migración LocalStorage → Supabase)
+- `IMPORT_ACTIVOS` (importación Excel tras persistencia exitosa)
+- `MIGRATE` (histórico, evento único de migración LocalStorage → Supabase)
 
 **Contrato**:
 - ✅ Solo después de persistencia exitosa en Supabase
@@ -270,11 +279,25 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 
 - **Solo admin** (UI + RLS)
 - **Validaciones**: Headers, campos requeridos, tipos, duplicados (código)
-- **Vista previa**: Resumen antes de confirmar
-- **Upsert**: `onConflict: 'id'` (preserva existentes)
-- **Auditoría**: `IMPORT_ACTIVOS` con conteos
-- **Recarga**: `DB.loadOperationalData()` post-import
+- **Límite**: 500 filas no vacías
+- **Vista previa**: Resumen antes de confirmar (nuevos, actualizaciones, errores bloqueantes)
+- **Persistencia**: `DB.bulkAddAssets` (upsert `onConflict: 'id'`, preserva existentes e IDs de actualización)
+- **Orden seguro**: persistencia Supabase antes de reconciliación de caché (sin filas fantasma ante fallo)
+- **Recarga**: `DB.loadOperationalData()` autoritativa post-import
+- **Recuperación parcial**: bandera `persisted` distingue fallo total de éxito parcial; `DB.reconcileImportedAssets` reconcilia tras persistencia confirmada con fallo de recarga; advertencia veraz con instrucción de recarga y reintento ciego bloqueado
+- **Auditoría**: `IMPORT_ACTIVOS` con conteos, solo tras persistencia exitosa
 - **Validaciones**: Códigos, tipos, campos obligatorios, duplicados internos
+
+## 10-B. Gastos — Contrato Asíncrono (F-02, vigente desde `c45c46c`)
+
+- **Carga**: `js/expenses.js` desde `index.html`; registro `expenses` en `App.MODULES`; navegación `Gastos` bajo Gestión
+- **Acceso frontend**: solo admin y supervisor (CRUD completo); sin acceso para tecnico ni consulta
+- **Creación/actualización**: `async save` con guarda `Auth.can('expenses')`, validación, bloqueo de botón, `await DB.addExpense` / `DB.updateExpense`, auditoría tras persistencia
+- **Eliminación**: `async delete` con guarda `Auth.canDelete('expenses')` (admin y supervisor), confirmación, `await DB.deleteExpense`, auditoría tras persistencia
+- **Reentrancia**: guardas `_saving` / `_deleting`; sin doble envío; sin reintento automático
+- **Éxito parcial**: advertencia veraz con instrucción de recarga; sin reenvío ciego
+- **Sin cambios**: capa de datos (`js/data.js`), RLS, CSS, Dashboard, Reports
+- **Exclusiones**: Dashboard KPI y Reports excluyen Gastos (alcance opcional separado, no autorizado)
 
 ## 11. Matriz Final de Permisos (Resumen)
 
@@ -282,7 +305,8 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 |---|---|---|---|---|
 | **Activos** | CRUD | CRU | CRU | R |
 | **Mantenimientos** | CRUD | CRUD | CRU | R |
-| **Gastos** | CRUD | CRUD | CRU | R |
+| **Gastos (app)** | CRUD | CRUD | — | — |
+| **Gastos (RLS)** | CRUD | CRUD | CRU | R |
 | **Alertas** | CRUD | CRUD | CRUD | R |
 | **Conductores** | CRUD | CRUD | R | R |
 | **Documentos** | R | R | R | R |
@@ -327,3 +351,15 @@ Todas las tablas operativas tienen RLS habilitado y policies restrictivas:
 4. **Respaldo sensible F2G**: Externo, retención 30 días post-confirmación
 5. **Sin PITR automático**: Respaldos manuales pg_dump requeridos
 6. **Sin tests automatizados**: Regresión manual documentada en OPERATIONS.md
+
+---
+
+## 15. Baseline Actual
+
+**Baseline operativa**: `c45c46c` (`c45c46ccfa83f6b998d99b120bffd76e579f87b9`)
+
+- F4.6: cerrada (modernización visual)
+- F-01 (importación Excel segura): cerrada en `0ff9426`
+- F-02 (Gastos admin/supervisor): cerrada en `c45c46c`
+- F2H-C: formalmente cerrada con elementos diferidos no bloqueantes
+- F2H-D: en pausa (evidencia incompleta, sin eliminación autorizada)

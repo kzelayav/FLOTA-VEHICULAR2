@@ -212,3 +212,18 @@ La aplicación migó de **LocalStorage** a **Supabase (PostgreSQL)** manteniendo
 
 **Migración COMPLETADA** — Baseline documentación: `338a0b4`  
 **Próximo**: F2H-C (Regresión Final) → F2H-D (Cierre Formal)
+
+---
+
+## Addendum de reconciliación posterior
+
+Las secciones históricas anteriores permanecen válidas como historia y no se modifican. Esta addenda actualiza únicamente el estado vigente:
+
+1. Baseline operativa actual: `c45c46c` (`c45c46ccfa83f6b998d99b120bffd76e579f87b9`).
+2. Corrección F-01 (importación Excel segura) cerrada en `0ff9426`: `DB.bulkAddAssets` antes de reconciliación, `DB.loadOperationalData` autoritativa, bandera `persisted` y `DB.reconcileImportedAssets` ante éxito parcial.
+3. Cableado F-02 (Gastos) cerrado en `c45c46c`: módulo activo para admin y supervisor (CRUD completo), sin acceso para tecnico ni consulta, creación/eliminación asíncronas con guardas `_saving`/`_deleting` y auditoría tras persistencia.
+4. F2H-C formalmente cerrada con elementos diferidos no bloqueantes.
+5. F2H-D permanece en pausa porque los requisitos de retención o evidencia permanecen incompletos; no se autoriza ninguna eliminación de respaldos sensibles.
+6. La recuperación de contraseña permanece fuera del alcance (procedimiento del Supabase Dashboard); la administración de usuarios permanece en el Supabase Dashboard.
+7. El acceso frontend a Gastos se limita a admin y supervisor; la integración de Gastos en Dashboard y Reports permanece como alcance opcional separado, no autorizado.
+8. Esta addenda sustituye la redacción de estado vigente ("Próximo: F2H-C → F2H-D") sin cambiar ningún hecho histórico.

@@ -8,7 +8,7 @@ Aplicación interna para registrar, controlar y analizar la operación de una fl
 - Registro y control de **activos** (vehículos, equipos, maquinaria)
 - **Mantenimientos preventivos** programados
 - **Mantenimientos correctivos** (fallas y reparaciones)
-- Control de **gastos** operativos
+- Control de **gastos** operativos (módulo Gastos activo para admin y supervisor; CRUD completo; sin acceso para tecnico ni consulta)
 - Gestión de **documentos** asociados a activos
 - **Alertas** de mantenimiento por kilometraje/horas
 - Registro de **conductores** y **vehículos**
@@ -104,10 +104,10 @@ Toda la gestión de usuarios se realiza en **Supabase Dashboard**:
 5. **Probar**: Login en la aplicación
 
 **Roles disponibles:**
-- `admin`: Acceso total (incluye DELETE en todas las tablas)
-- `supervisor`: Gestión operativa (DELETE en alertas y mantenimientos)
-- `tecnico`: Operación (sin DELETE en mantenimientos, con DELETE en alertas)
-- `consulta`: Solo lectura
+- `admin`: Acceso total (incluye DELETE en todas las tablas y Gastos CRUD completo)
+- `supervisor`: Gestión operativa (DELETE en alertas y mantenimientos; Gastos CRUD completo)
+- `tecnico`: Operación (sin DELETE en mantenimientos, con DELETE en alertas; sin acceso al módulo Gastos)
+- `consulta`: Solo lectura (sin acceso al módulo Gastos; la lectura general no incluye Gastos)
 
 ## Seguridad
 
@@ -117,7 +117,7 @@ Toda la gestión de usuarios se realiza en **Supabase Dashboard**:
 - **Logout**: Auditado antes de `signOut()`; limpieza defensiva de `fleet_session`/`fleet_users`
 - **Credenciales**: Sin credenciales hardcodeadas; demo removidas
 - **Service Role**: Nunca expuesta en frontend
-- **Auditoría**: LOGIN, LOGOUT, CREATE, UPDATE, DELETE en `public.auditoria`
+- **Auditoría**: LOGOUT, CREATE, UPDATE, DELETE, COMPLETE, SETTINGS, IMPORT_ACTIVOS en `public.auditoria` (LOGIN no implementado; MIGRATE fue un evento histórico único)
 
 ## Documentos Relacionados
 
@@ -134,6 +134,11 @@ Toda la gestión de usuarios se realiza en **Supabase Dashboard**:
 - ✅ Autenticación legacy eliminada (F2F.10-B)
 - ✅ Permisos DELETE alineados con RLS (F2H-UI)
 - ✅ Caché mutada solo tras persistencia exitosa
+- ✅ Modernización visual F4.6 cerrada
+- ✅ Corrección F-01 (importación Excel segura) cerrada en `0ff9426`
+- ✅ Módulo Gastos (F-02) activo para admin y supervisor en `c45c46c`
+- ✅ F2H-C formalmente cerrado con elementos diferidos no bloqueantes
+- ⏸️ F2H-D en pausa (evidencia incompleta, sin eliminación autorizada)
 - ✅ Producción estable en Vercel
 
 ## Limitaciones Conocidas
@@ -141,9 +146,9 @@ Toda la gestión de usuarios se realiza en **Supabase Dashboard**:
 - Rol `tecnico` validado estáticamente; prueba funcional pendiente (sin cuenta operativa activa)
 - No hay API administrativa en la aplicación (gestión vía Supabase Dashboard)
 - No hay Edge Functions ni service role en frontend
-- Importación Excel limitada a activos (validación de encabezados y duplicados)
+- Importación Excel limitada a activos (validación de encabezados y duplicados; máximo 500 filas no vacías; persistencia antes de reconciliación; la advertencia parcial requiere recarga y verificación antes de reintentar)
 - Respaldo sensible F2G externo con retención de 30 días post-confirmación
 
 ---
 
-**Commit baseline documentación**: `338a0b4` — fix: correct maintenance delete button syntax
+**Commit baseline documentación**: `c45c46c` — reconcile documentation to baseline c45c46c
