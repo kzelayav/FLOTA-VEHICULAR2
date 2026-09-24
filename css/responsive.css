@@ -246,3 +246,120 @@
     gap: 4px;
   }
 }
+
+/* ====================================================
+   LOGIN SPLIT-SCREEN RESPONSIVE
+   Visual only. No JavaScript involved.
+   ==================================================== */
+
+/* Tablet landscape and small desktop: narrower split, fewer beans */
+@media (max-width: 1024px) {
+  #login-page .login-split {
+    max-width: 860px;
+  }
+
+  #login-page .login-brand-panel {
+    flex-basis: 55%;
+    padding: 36px 32px;
+  }
+
+  #login-page .login-brand-panel h1 {
+    font-size: 26px;
+  }
+
+  #login-page .login-capabilities {
+    gap: 8px;
+  }
+
+  #login-page .login-coffee-bean--9,
+  #login-page .login-coffee-bean--10 {
+    display: none;
+  }
+}
+
+/* Tablet portrait and below: single column, compact branding */
+@media (max-width: 768px) {
+  #login-page {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  #login-page .login-split {
+    flex-direction: column;
+    max-width: 480px;
+  }
+
+  #login-page .login-brand-panel {
+    flex-basis: auto;
+    padding: 28px 24px 24px;
+    gap: 10px;
+  }
+
+  #login-page .login-brand-panel h1 {
+    font-size: 24px;
+  }
+
+  #login-page .login-hero {
+    font-size: 14px;
+  }
+
+  #login-page .login-brand-desc {
+    font-size: 13px;
+  }
+
+  #login-page .login-capabilities {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+  }
+
+  #login-page .login-brand-note {
+    display: none;
+  }
+
+  #login-page .login-form-panel {
+    padding: 28px 24px;
+  }
+
+  #login-page .login-coffee-bean--6,
+  #login-page .login-coffee-bean--7,
+  #login-page .login-coffee-bean--8,
+  #login-page .login-coffee-bean--9,
+  #login-page .login-coffee-bean--10 {
+    display: none;
+  }
+}
+
+/* Small mobile: minimal branding, subtle beans */
+@media (max-width: 430px) {
+  #login-page {
+    padding: 12px;
+  }
+
+  #login-page .login-brand-panel {
+    padding: 22px 18px 18px;
+  }
+
+  #login-page .login-brand-mark {
+    width: 44px;
+    height: 44px;
+  }
+
+  #login-page .login-capabilities {
+    display: none;
+  }
+
+  #login-page .login-form-panel {
+    padding: 22px 18px;
+  }
+
+  #login-page .login-coffee-bean--4,
+  #login-page .login-coffee-bean--5,
+  #login-page .login-coffee-bean--6,
+  #login-page .login-coffee-bean--7,
+  #login-page .login-coffee-bean--8,
+  #login-page .login-coffee-bean--9,
+  #login-page .login-coffee-bean--10 {
+    display: none;
+  }
+}

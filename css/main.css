@@ -2433,4 +2433,268 @@ color: var(--nav-text);
 
 /* ====================================================
    LOGIN OVERRIDES END
-   ====================================================
+   ==================================================== */
+
+/* ====================================================
+   LOGIN SPLIT-SCREEN + COFFEE-BEAN DECORATION
+   Visual-only layer. Auth, session and handler
+   contracts unchanged. No external assets.
+   ==================================================== */
+
+/* ---------- Split composition ---------- */
+#login-page .login-split {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--header-border);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.03),
+    0 4px 24px rgba(0,0,0,0.35),
+    0 20px 60px rgba(0,0,0,0.4);
+}
+
+/* ---------- Branding panel ---------- */
+#login-page .login-brand-panel {
+  flex: 1 1 57%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 44px 40px;
+  color: var(--text-on-brand);
+  background:
+    radial-gradient(ellipse 60% 40% at 85% 10%, rgba(6,182,212,0.16), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 10% 95%, rgba(245,158,11,0.10), transparent 60%),
+    linear-gradient(160deg, rgba(11,61,46,0.98) 0%, rgba(6,19,15,0.99) 100%);
+}
+
+#login-page .login-brand-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
+
+#login-page .login-eyebrow {
+  position: relative;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--status-warning);
+  margin: 0;
+}
+
+#login-page .login-brand-mark {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-on-brand);
+  background: linear-gradient(135deg, var(--status-success) 0%, #0a4d3a 100%);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+#login-page .login-brand-mark svg {
+  width: 28px;
+  height: 28px;
+}
+
+#login-page .login-brand-panel h1 {
+  position: relative;
+  font-size: 30px;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text-on-brand);
+  margin: 0;
+}
+
+#login-page .login-hero {
+  position: relative;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-on-brand);
+  margin: 0;
+}
+
+#login-page .login-brand-desc {
+  position: relative;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(226,232,240,0.78);
+  margin: 0;
+  max-width: 340px;
+}
+
+#login-page .login-capabilities {
+  position: relative;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+#login-page .login-capabilities li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: rgba(226,232,240,0.9);
+}
+
+#login-page .login-capabilities svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--status-success);
+}
+
+#login-page .login-brand-note {
+  position: relative;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgba(226,232,240,0.65);
+  margin: 10px 0 0;
+}
+
+/* ---------- Form panel ---------- */
+#login-page .login-form-panel {
+  flex: 1 1 43%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 36px;
+  background: linear-gradient(145deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+
+#login-page .login-form-panel .login-card {
+  max-width: 360px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+#login-page .login-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+  text-align: center;
+}
+
+#login-page .login-header p {
+  font-size: 13.5px;
+  color: var(--nav-text);
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+#login-page .login-form-panel .toggle-password {
+  width: 40px;
+  height: 40px;
+}
+
+/* ---------- Coffee-bean decoration (CSS only) ---------- */
+#login-page .login-coffee-beans {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#login-page .login-coffee-bean {
+  position: absolute;
+  top: -48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6f4e2e 0%, #4a3018 55%, #2b1a0c 100%);
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.35),
+    inset -2px -3px 6px rgba(0,0,0,0.45),
+    inset 2px 3px 5px rgba(255,235,200,0.18);
+  opacity: 0.4;
+  animation-name: loginBeanFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+#login-page .login-coffee-bean::after {
+  content: '';
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  left: 50%;
+  width: 3px;
+  border-radius: 3px;
+  transform: translateX(-50%) rotate(8deg);
+  background: rgba(30,17,8,0.6);
+}
+
+@keyframes loginBeanFall {
+  from {
+    transform: translate3d(0, -6vh, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(var(--bean-drift, 30px), 112vh, 0) rotate(320deg);
+  }
+}
+
+#login-page .login-coffee-bean--1 { left: 4%;  width: 22px; height: 30px; animation-duration: 22s; animation-delay: -6s;  --bean-drift: 34px;  opacity: 0.42; }
+#login-page .login-coffee-bean--2 { left: 14%; width: 30px; height: 40px; animation-duration: 27s; animation-delay: -18s; --bean-drift: -28px; opacity: 0.34; }
+#login-page .login-coffee-bean--3 { left: 26%; width: 18px; height: 25px; animation-duration: 16s; animation-delay: -3s;  --bean-drift: 44px;  opacity: 0.46; }
+#login-page .login-coffee-bean--4 { left: 38%; width: 34px; height: 46px; animation-duration: 25s; animation-delay: -12s; --bean-drift: -36px; opacity: 0.30; }
+#login-page .login-coffee-bean--5 { left: 50%; width: 24px; height: 33px; animation-duration: 19s; animation-delay: -9s;  --bean-drift: 26px;  opacity: 0.40; }
+#login-page .login-coffee-bean--6 { left: 61%; width: 28px; height: 38px; animation-duration: 24s; animation-delay: -21s; --bean-drift: -30px; opacity: 0.33; }
+#login-page .login-coffee-bean--7 { left: 72%; width: 20px; height: 27px; animation-duration: 15s; animation-delay: -5s;  --bean-drift: 40px;  opacity: 0.44; }
+#login-page .login-coffee-bean--8 { left: 82%; width: 36px; height: 48px; animation-duration: 28s; animation-delay: -15s; --bean-drift: -42px; opacity: 0.28; }
+#login-page .login-coffee-bean--9 { left: 90%; width: 23px; height: 31px; animation-duration: 20s; animation-delay: -11s; --bean-drift: 30px;  opacity: 0.38; }
+#login-page .login-coffee-bean--10 { left: 96%; width: 27px; height: 36px; animation-duration: 23s; animation-delay: -2s;  --bean-drift: -24px; opacity: 0.35; }
+
+/* ---------- Reduced motion: static beans only ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #login-page .login-coffee-bean {
+    animation: none;
+    opacity: 0.16;
+  }
+  #login-page .login-coffee-bean--1 { top: 10%; transform: rotate(18deg); }
+  #login-page .login-coffee-bean--2 { top: 68%; transform: rotate(-14deg); }
+  #login-page .login-coffee-bean--3 { top: 38%; transform: rotate(30deg); }
+  #login-page .login-coffee-bean--4,
+  #login-page .login-coffee-bean--5,
+  #login-page .login-coffee-bean--6,
+  #login-page .login-coffee-bean--7,
+  #login-page .login-coffee-bean--8,
+  #login-page .login-coffee-bean--9,
+  #login-page .login-coffee-bean--10 {
+    display: none;
+  }
+  #login-page .login-split,
+  #login-page .login-form-panel .login-card,
+  #login-page .login-brand-panel {
+    animation: none;
+  }
+}
