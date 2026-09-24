@@ -7,6 +7,9 @@ const ExpensesModule = {
   activeCategory: '',
 
   render() {
+    if (!Auth.can('expenses')) {
+      return `<div class="empty-state"><div class="empty-icon">🔒</div><h3>Acceso Denegado</h3><p>No tienes permiso para acceder a este módulo.</p></div>`;
+    }
     const all = DB.getExpenses();
     const now = new Date();
     const monthExp = all.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
@@ -15,7 +18,7 @@ const ExpensesModule = {
     const yearTotal  = yearExp.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
     const total = all.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
     const assets = DB.getAssets();
-    const canEdit = Auth.getSession()?.role !== 'consulta';
+    const canEdit = Auth.can('expenses');
 
     const years = [...new Set(all.map(e=>new Date(e.date).getFullYear()))].sort((a,b)=>b-a);
     const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -97,7 +100,8 @@ const ExpensesModule = {
 
     if (data.length === 0) return `<div class="empty-state"><div class="empty-icon">💰</div><h3>Sin gastos</h3><p>Registra el primer gasto operativo.</p></div>`;
 
-    const canEdit = Auth.getSession()?.role !== 'consulta';
+    const canEdit = Auth.can('expenses');
+    const canDeleteExpense = Auth.canDelete('expenses');
     return `
     <div class="card" style="padding:0">
       <div class="flex-between" style="padding:14px 16px;border-bottom:1px solid var(--border)">
@@ -124,9 +128,8 @@ const ExpensesModule = {
                 <td class="fw-700">${fmtCurrency(e.amount)}</td>
                 <td>
                   <div class="table-actions">
-                    ${canEdit?`
-                    <button class="btn btn-outline btn-icon btn-sm" onclick="ExpensesModule.openModal('${e.id}')" title="Editar">✏️</button>
-                    <button class="btn btn-outline btn-icon btn-sm" onclick="ExpensesModule.delete('${e.id}')" title="Eliminar">🗑️</button>`:''}
+                    ${canEdit?`<button class="btn btn-outline btn-icon btn-sm" onclick="ExpensesModule.openModal('${e.id}')" title="Editar">✏️</button>`:''}
+                    ${canDeleteExpense?`<button class="btn btn-outline btn-icon btn-sm" onclick="ExpensesModule.delete('${e.id}')" title="Eliminar">🗑️</button>`:''}
                   </div>
                 </td>
               </tr>`;
@@ -195,7 +198,14 @@ const ExpensesModule = {
     );
   },
 
-  save(id) {
+  _saving: false,
+
+  async save(id) {
+    if (!Auth.can('expenses')) {
+      showToast('No tienes permiso para registrar gastos','error');
+      return;
+    }
+    if (this._saving) return;
     const get = sel => document.getElementById(sel)?.value?.trim();
     const date = get('ef-date');
     const amount = parseFloat(document.getElementById('ef-amount')?.value||0);
@@ -209,25 +219,66 @@ const ExpensesModule = {
     };
 
     const session = Auth.getSession();
-    if (id) {
-      DB.updateExpense(id, data);
-      DB.addAudit({ user:session.name, action:'UPDATE', detail:`Gasto actualizado: ${getCategoryLabel(data.category)} ${fmtCurrency(data.amount)}` });
-      showToast('Gasto actualizado','success');
-    } else {
-      DB.addExpense(data);
-      DB.addAudit({ user:session.name, action:'CREATE', detail:`Gasto registrado: ${getCategoryLabel(data.category)} ${fmtCurrency(data.amount)}` });
-      showToast('Gasto registrado','success');
+    const btn = document.querySelector(`[onclick="ExpensesModule.save('${id||''}')"]`);
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
+    this._saving = true;
+    let persisted = false;
+    try {
+      if (id) {
+        await DB.updateExpense(id, data);
+        persisted = true;
+        DB.addAudit({ user:session?.name||'', action:'UPDATE', detail:`Gasto actualizado: ${getCategoryLabel(data.category)} ${fmtCurrency(data.amount)}` });
+        showToast('Gasto actualizado','success');
+      } else {
+        await DB.addExpense(data);
+        persisted = true;
+        DB.addAudit({ user:session?.name||'', action:'CREATE', detail:`Gasto registrado: ${getCategoryLabel(data.category)} ${fmtCurrency(data.amount)}` });
+        showToast('Gasto registrado','success');
+      }
+      closeModal('exp-modal-placeholder');
+      document.getElementById('exp-content').innerHTML = this.renderContent();
+      this._saving = false;
+    } catch (e) {
+      if (!persisted) {
+        showToast((e.message || 'Error guardando gasto') + '. No se guardó ningún registro.', 'error');
+        this._saving = false;
+      } else {
+        // Éxito parcial: el gasto ya quedó persistido; una falla posterior
+        // de cierre o rerender no debe presentarse como fallo de guardado
+        // ni permitir un reenvío que duplicaría el registro.
+        try { document.getElementById('exp-content').innerHTML = this.renderContent(); } catch {}
+        showToast('El gasto se guardó, pero la vista no pudo actualizarse. Recargue o vuelva a abrir Gastos y no vuelva a enviar el formulario.', 'warning');
+        if (btn) { btn.disabled = true; btn.innerHTML = 'Guardado — recargue la vista'; }
+      }
+      return;
+    } finally {
+      if (!persisted) { if (btn) { btn.disabled = false; btn.innerHTML = originalText; } }
     }
-    closeModal('exp-modal-placeholder');
-    document.getElementById('exp-content').innerHTML = this.renderContent();
   },
 
-  delete(id) {
+  _deleting: {},
+
+  async delete(id) {
+    if (!Auth.canDelete('expenses')) {
+      showToast('No tienes permiso para eliminar gastos','error');
+      return;
+    }
+    if (this._deleting[id]) return;
     const e = DB.getExpenses().find(x=>x.id===id);
+    if (!e) { showToast('Gasto no encontrado','error'); return; }
     if (!confirm('¿Eliminar este registro de gasto?')) return;
-    DB.deleteExpense(id);
-    DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Gasto eliminado: ${fmtCurrency(e?.amount)}` });
-    showToast('Gasto eliminado','success');
-    document.getElementById('exp-content').innerHTML = this.renderContent();
+    this._deleting[id] = true;
+    try {
+      await DB.deleteExpense(id);
+      DB.addAudit({ user:Auth.getSession()?.name||'', action:'DELETE', detail:`Gasto eliminado: ${fmtCurrency(e?.amount)}` });
+      showToast('Gasto eliminado','success');
+      document.getElementById('exp-content').innerHTML = this.renderContent();
+    } catch (err) {
+      showToast(err.message || 'Error eliminando gasto', 'error');
+      return;
+    } finally {
+      delete this._deleting[id];
+    }
   },
 };

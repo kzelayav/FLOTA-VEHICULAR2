@@ -11,6 +11,7 @@ const App = {
     assets:     { render: () => AssetsModule.render() },
     preventive: { render: () => PreventiveModule.render() },
     corrective: { render: () => CorrectiveModule.render() },
+    expenses:   { render: () => ExpensesModule.render() },
     alerts:     { render: () => AlertsModule.render() },
     reports:    { render: () => ReportsModule.render(),    init: () => ReportsModule.init() },
     audit:      { render: () => AuditModule.render() },
@@ -68,6 +69,7 @@ const App = {
     const subs = {
       dashboard:'Indicadores en tiempo real', assets:'Registro de vehículos y equipos',
       preventive:'Mantenimientos preventivos', corrective:'Fallas y reparaciones',
+      expenses:'Control de gastos operativos',
       alerts:'Notificaciones del sistema', reports:'Reportes y exportaciones',
       audit:'Bitácora de auditoría', settings:'Configuración del sistema',
     };
@@ -123,7 +125,7 @@ const App = {
     let html = '';
     const sections = [
       { label:'Principal', items:['dashboard'] },
-      { label:'Gestión', items:['assets','preventive','corrective'] },
+      { label:'Gestión', items:['assets','preventive','corrective','expenses'] },
       { label:'Análisis', items:['alerts','reports'] },
       { label:'Sistema', items:['audit','settings'] },
     ];
