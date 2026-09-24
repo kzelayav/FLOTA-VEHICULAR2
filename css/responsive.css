@@ -471,3 +471,49 @@
   .assets-v2-toolbar .btn { width: 100%; }
   .assets-v2-detail-actions .btn { width: 100%; }
 }
+
+/* ====================================================
+   REPORTS VISUAL V2 RESPONSIVE (report-scoped only)
+   ==================================================== */
+
+/* ── Above 1200px: tabs row, 4-col KPI, multi-col filters ── */
+@media (min-width: 1201px) {
+  .reports-v2-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .reports-v2-kpi-grid--global { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .reports-v2-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ── 901–1200px: 2-col KPI, wrapping tabs/filters ── */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .reports-v2-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reports-v2-kpi-grid--global { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reports-v2-tabs { flex-wrap: wrap; }
+  .reports-v2-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reports-v2-table-shell { overflow-x: auto; }
+}
+
+/* ── ≤768px: stacked header, scrollable tabs, 2-col KPI, 1-col filters ── */
+@media (max-width: 768px) {
+  .reports-v2-header { flex-direction: column; }
+  .reports-v2-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .reports-v2-tab { flex: 0 0 auto; }
+  .reports-v2-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reports-v2-kpi-grid--global { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reports-v2-filter-grid { grid-template-columns: 1fr; }
+  .reports-v2-filter-footer { flex-direction: column; align-items: stretch; }
+  .reports-v2-export-actions { width: 100%; }
+  .reports-v2-export-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .reports-v2-table-shell { overflow-x: auto; }
+}
+
+/* ── ≤480px: 1-col KPI, stacked exports ── */
+@media (max-width: 480px) {
+  .reports-v2-kpi-grid { grid-template-columns: 1fr; }
+  .reports-v2-kpi-grid--global { grid-template-columns: 1fr; }
+  .reports-v2-export-actions { flex-direction: column; align-items: stretch; }
+  .reports-v2-export-actions .btn { width: 100%; }
+}

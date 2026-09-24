@@ -7,28 +7,47 @@ const ReportsModule = {
   reportType: 'assets',
 
   render() {
+    const assetsTotal = DB.getAssets().length;
+    const prevTotal = DB.getPreventive().length;
+    const corrTotal = DB.getCorrective().length;
+    const badgeText = this.reportType==='assets' ? `${assetsTotal} activos registrados`
+      : this.reportType==='preventive' ? `${prevTotal} registros preventivos`
+      : this.reportType==='corrective' ? `${corrTotal} registros correctivos`
+      : 'Indicadores globales';
+    const tabs = [
+      ['assets','🚛 Activos',`${assetsTotal}`],
+      ['preventive','🔧 Mantenimiento Preventivo',`${prevTotal}`],
+      ['corrective','⚠️ Correctivo',`${corrTotal}`],
+      ['kpis','📊 KPIs','Global'],
+    ];
+    const hints = {
+      assets: 'Filtros disponibles para activos',
+      preventive: 'Fechas, activo y planta aplican al reporte preventivo',
+      corrective: 'Fechas, activo, planta y estado aplican al reporte correctivo',
+      kpis: 'Indicadores globales no afectados por los filtros',
+    };
     return `
-    <div class="page-header">
+    <div class="page-header reports-v2-header">
       <div class="page-header-left">
-        <h2>📄 Reportes</h2>
+        <div class="reports-v2-title-row">
+          <h2>📄 Reportes</h2>
+          <span class="reports-v2-count-badge">${badgeText}</span>
+        </div>
         <p>Generación y exportación de reportes de la flota</p>
       </div>
     </div>
 
     <!-- Report type selector -->
-    <div class="tabs mb-16">
-      ${[
-        ['assets','🚛 Activos'],['preventive','🔧 Mantenimiento Preventivo'],
-        ['corrective','⚠️ Correctivo'],['kpis','📊 KPIs']
-      ].map(([id,label])=>`<button class="tab-btn ${this.reportType===id?'active':''}" onclick="ReportsModule.setType('${id}')">${label}</button>`).join('')}
+    <div class="reports-v2-tabs mb-16" role="tablist" aria-label="Categorías de reportes">
+      ${tabs.map(([id,label,count])=>`<button role="tab" aria-selected="${this.reportType===id}" class="reports-v2-tab ${this.reportType===id?'active':''}" onclick="ReportsModule.setType('${id}')">${label} <span class="reports-v2-tab-count">${count}</span></button>`).join('')}
     </div>
 
     <!-- Filters -->
-    <div class="card mb-16">
+    <div class="card mb-16 reports-v2-filter-card">
       <div class="card-header">
         <div class="card-title">🔍 Filtros del Reporte</div>
       </div>
-      <div class="form-grid">
+      <div class="form-grid reports-v2-filter-grid">
         <div class="form-group">
           <label class="form-label">Fecha Desde</label>
           <input class="form-control" type="date" id="rf-from" value="${this.filter.dateFrom}" onchange="ReportsModule.setFilter('dateFrom',this.value)">
@@ -74,9 +93,10 @@ const ReportsModule = {
           <input class="form-control" id="rf-resp" placeholder="Nombre..." onchange="ReportsModule.setFilter('responsible',this.value)">
         </div>
       </div>
-      <div class="flex-between mt-8" style="gap:10px">
-        <div class="text-sm text-muted" id="rep-count"></div>
-        <div style="display:flex;gap:10px">
+      <div class="reports-v2-filter-hint text-sm text-muted">${hints[this.reportType]||''}</div>
+      <div class="flex-between mt-8 reports-v2-filter-footer" style="gap:10px">
+        <div class="text-sm text-muted reports-v2-result-count" role="status" id="rep-count"></div>
+        <div class="reports-v2-export-actions" style="display:flex;gap:10px">
           <button class="btn btn-secondary" onclick="ReportsModule.exportExcel()">📥 Exportar Excel</button>
           <button class="btn btn-primary" onclick="ReportsModule.exportPDF()">📄 Exportar PDF</button>
         </div>
@@ -84,7 +104,7 @@ const ReportsModule = {
     </div>
 
     <!-- Report preview -->
-    <div class="card" id="report-preview"></div>`;
+    <div class="card reports-v2-preview" id="report-preview"></div>`;
   },
 
   setType(type) {
@@ -146,28 +166,69 @@ const ReportsModule = {
     if (!el) return;
     const data = this.getFilteredData();
     const countEl = document.getElementById('rep-count');
-    if (countEl) countEl.textContent = `${data.length} registros encontrados`;
+    if (countEl) countEl.textContent = this.reportType==='kpis'
+      ? 'Indicadores globales (sin filtros aplicados)'
+      : `${data.length} registro${data.length===1?'':'s'} encontrado${data.length===1?'':'s'}`;
+
+    const modeOf = (items) => {
+      const counts = {};
+      items.forEach(v => { const t = (v||'').trim(); if (t) counts[t] = (counts[t]||0)+1; });
+      const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:a[0]>b[0]?1:0));
+      return entries.length ? entries[0] : null;
+    };
+    const distinctCodes = (items) => [...new Set(items.map(i=>i.assetCode).filter(Boolean))].length;
 
     let html = '';
     switch(this.reportType) {
-      case 'assets':
-        html = this.tableHTML(['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Medidor'],
-          data.map(a=>[a.code,a.type,a.brand,a.model,a.year,a.plate||'—',a.location||'—',a.status,a.currentKm>0?fmtKm(a.currentKm):fmtHours(a.currentHours)]));
+      case 'assets': {
+        const op = data.filter(a=>a.status==='operativo').length;
+        const mnt = data.filter(a=>a.status==='mantenimiento').length;
+        const out = data.filter(a=>a.status==='fuera').length;
+        const kpiHtml = `<div class="reports-v2-kpi-grid">${[
+          ['Total de Activos',data.length,'registros filtrados'],
+          ['Operativos',op,'registros filtrados'],
+          ['En Mantenimiento',mnt,'registros filtrados'],
+          ['Fuera de Servicio',out,'registros filtrados'],
+        ].map(([l,v,c])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
+        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--assets">` + this.tableHTML(['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Medidor'],
+          data.map(a=>[a.code,a.type,a.brand,a.model,a.year,a.plate||'—',a.location||'—',a.status,a.currentKm>0?fmtKm(a.currentKm):fmtHours(a.currentHours)])) + `</div>`;
         break;
-      case 'preventive':
-        html = this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Acciones'],
+      }
+      case 'preventive': {
+        const prevCost = data.reduce((s,p)=>s+(parseFloat(p.cost)||0),0);
+        const prevAssets = distinctCodes(data);
+        const freqTop = modeOf(data.map(p=>p.type));
+        const kpiHtml = `<div class="reports-v2-kpi-grid">${[
+          ['Registros Preventivos',data.length,'registros filtrados'],
+          ['Costo Preventivo',DB.fmtCurrency(prevCost),'suma de costos'],
+          ['Activos Atendidos',prevAssets,'códigos distintos'],
+          ['Servicio Frecuente',freqTop?freqTop[0]:'Sin datos',freqTop?`${freqTop[1]} ocurrencias`:'sin registros'],
+        ].map(([l,v,c])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
+        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--preventive">` + this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Acciones'],
           data.map(p=>[p.assetCode,p.type,fmtDate(p.lastDoneDate),p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours),DB.fmtCurrency(p.cost||0),p.techName||'—',
-          Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deletePreventive('${p.id}')" title="Eliminar registro">🗑️</button>` : '']));
+          Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deletePreventive('${p.id}')" title="Eliminar registro" aria-label="Eliminar registro preventivo de ${p.assetCode||'activo'}">🗑️</button>` : ''])) + `</div>`;
         break;
-      case 'corrective':
-        html = this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Costo Total','Acciones'],
+      }
+      case 'corrective': {
+        const corrCost = data.reduce((s,c)=>s+(parseFloat(c.laborCost)||0)+(parseFloat(c.partsCost)||0),0);
+        const corrAssets = distinctCodes(data);
+        const catTop = modeOf(data.map(c=>c.failureCategory));
+        const kpiHtml = `<div class="reports-v2-kpi-grid">${[
+          ['Registros Correctivos',data.length,'registros filtrados'],
+          ['Costo Correctivo',DB.fmtCurrency(corrCost),'mano de obra más repuestos'],
+          ['Activos con Correctivos',corrAssets,'códigos distintos'],
+          ['Categoría Frecuente',catTop?catTop[0]:'Sin datos',catTop?`${catTop[1]} ocurrencias`:'sin registros'],
+        ].map(([l,v,c])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
+        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--corrective">` + this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Costo Total','Acciones'],
           data.map(c=>[c.assetCode,fmtDate(c.failureDate),c.failureCategory||'—',fmtHours(c.downtimeHours),c.provider||'—',DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0)),
-          Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deleteCorrective('${c.id}')" title="Eliminar registro">🗑️</button>` : '']));
+          Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deleteCorrective('${c.id}')" title="Eliminar registro" aria-label="Eliminar registro correctivo de ${c.assetCode||'activo'}">🗑️</button>` : ''])) + `</div>`;
         break;
+      }
       case 'kpis':
         const kpis = data[0]||{};
         const cur = DB.getCurrencySymbol(DB.getSettings().currency);
-        html = `<div class="grid-3" style="gap:12px">
+        html = `<div class="reports-v2-kpis-global">Indicadores globales (sin filtros aplicados)</div>
+        <div class="reports-v2-kpi-grid reports-v2-kpi-grid--global">
           ${[
             ['Disponibilidad',`${kpis.disponibilidad}%`],
             ['MTBF',`${fmtNumber(kpis.mtbf,0)} hrs`],
@@ -178,21 +239,19 @@ const ReportsModule = {
             ['Mantenimientos Vencidos',kpis.overdue],
             ['Equipos Operativos',kpis.operativeAssets],
             ['Costo/Hora',`${cur} ${kpis.costPerHr}`],
-          ].map(([l,v])=>`<div class="card" style="padding:14px;text-align:center">
-            <div class="stat-number text-primary">${v}</div><div class="text-sm text-muted">${l}</div>
-          </div>`).join('')}
+          ].map(([l,v])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div></div>`).join('')}
         </div>`;
         break;
     }
-    el.innerHTML = html || '<div class="empty-state"><div class="empty-icon">📄</div><h3>Sin datos</h3></div>';
+    el.innerHTML = html || '<div class="empty-state reports-v2-empty"><div class="empty-icon" aria-hidden="true">📄</div><h3>Sin datos</h3></div>';
   },
 
   tableHTML(headers, rows) {
-    if (rows.length === 0) return '<div class="empty-state"><div class="empty-icon">📋</div><h3>Sin datos con los filtros aplicados</h3></div>';
+    if (rows.length === 0) return '<div class="empty-state reports-v2-empty"><div class="empty-icon" aria-hidden="true">📋</div><h3>Sin datos con los filtros aplicados</h3></div>';
     return `
-    <div class="table-wrapper">
-      <table>
-        <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <div class="table-wrapper reports-v2-table-shell">
+      <table class="reports-v2-table">
+        <thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead>
         <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c||'—'}</td>`).join('')}</tr>`).join('')}</tbody>
       </table>
     </div>`;
