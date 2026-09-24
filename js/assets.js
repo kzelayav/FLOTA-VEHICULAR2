@@ -630,25 +630,41 @@ const AssetsModule = {
         
         if (!hasBlockingErrors) {
            document.getElementById('confirm-import-btn').onclick = async () => {
-             const btn = document.getElementById('confirm-import-btn');
-             btn.disabled = true;
-             btn.textContent = 'Importando...';
-             try {
-                await DB.importAssets(batch);
-                await DB.reloadAssetsFromSupabase();
+              const btn = document.getElementById('confirm-import-btn');
+              btn.disabled = true;
+              btn.textContent = 'Importando...';
+              let persisted = false;
+              try {
+                await DB.bulkAddAssets(batch);
+                persisted = true;
+                await DB.loadOperationalData();
                 DB.addAudit({ user:Auth.getSession()?.name||'', action:'IMPORT_ACTIVOS', detail:`Importación finalizada: nuevos ${newCount}, actualizados ${updateCount}, rechazados 0` });
                 showToast(`Importación exitosa.`, 'success');
                 document.getElementById('assets-content').innerHTML = this.renderContent();
                 closeModal('asset-modal-placeholder');
-             } catch (importErr) {
-                console.error('Error guardando importación:', importErr);
-                showToast('Error en la importación: ' + importErr.message, 'error');
-                btn.disabled = false;
-                btn.textContent = 'Confirmar Importación';
-             } finally {
+              } catch (importErr) {
+                if (!persisted) {
+                  console.error('Error guardando importación:', importErr);
+                  showToast('Error en la importación: ' + importErr.message + '. No se guardó ningún registro.', 'error');
+                  btn.disabled = false;
+                  btn.textContent = 'Confirmar Importación';
+                } else {
+                  // Éxito parcial: Supabase aceptó los registros pero la
+                  // recarga autoritativa falló. Reconciliar la vista desde el
+                  // lote conocido, registrar el intento único de auditoría y
+                  // NO invitar a un reintento ciego (generaría duplicados).
+                  try { DB.reconcileImportedAssets(batch); } catch {}
+                  try { document.getElementById('assets-content').innerHTML = this.renderContent(); } catch {}
+                  try { DB.addAudit({ user:Auth.getSession()?.name||'', action:'IMPORT_ACTIVOS', detail:`Importación finalizada: nuevos ${newCount}, actualizados ${updateCount}, rechazados 0` }); } catch {}
+                  console.warn('Importación parcialmente aplicada (upsert OK, recarga fallida):', importErr);
+                  showToast('Los datos se guardaron en Supabase, pero la vista no pudo actualizarse. Recargue la aplicación y verifique antes de reintentar. No vuelva a confirmar este archivo.', 'warning');
+                  btn.disabled = true;
+                  btn.textContent = 'Guardado parcial — recargue la página';
+                }
+              } finally {
                 if (fileInput) { fileInput.disabled = false; fileInput.value = ''; }
-             }
-           };
+              }
+            };
         }
       } catch (err) {
         console.error('Error preparando excel:', err);

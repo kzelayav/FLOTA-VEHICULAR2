@@ -1036,19 +1036,58 @@ currency: s.currency || 'NIO',
   },
   getAsset(id)       { return this._cache.assets.find(x => x.id === id); },
   async bulkAddAssets(arr) {
+    if (!Array.isArray(arr)) {
+      throw new Error('bulkAddAssets: se esperaba un arreglo de activos');
+    }
+    if (arr.length === 0) return [];
     const ready = [];
     for (const obj of arr) {
+      if (!obj || typeof obj !== 'object') {
+        throw new Error('bulkAddAssets: elemento de lote inválido');
+      }
       obj.id = obj.id || this.newId();
       obj.createdAt = obj.createdAt || new Date().toISOString();
       ready.push(obj);
     }
-    this._cache.assets = this._cache.assets.concat(ready);
     if (this.mode === 'supabase' && this.supabase) {
+      // Model A: persistir primero sin mutación optimista.
+      // La reconciliación autoritativa la realiza el caller vía reload.
+      // Así un rechazo de Supabase no deja filas fantasma en caché.
       await this._async('bulk insert activos', () => this._upsertRows('activos', ready.map(a => this._toAssetRow(a))));
-    } else {
-      this._writeLS('assets');
+      return ready;
     }
-    return arr;
+    const snapshot = Array.isArray(this._cache.assets) ? this._cache.assets.slice() : [];
+    try {
+      this._cache.assets = snapshot.concat(ready);
+      this._writeLS('assets');
+    } catch (err) {
+      this._cache.assets = snapshot;
+      throw err;
+    }
+    return ready;
+  },
+
+  /* Reconciliación local desde un lote ya persistido (solo recuperación
+     parcial: el upsert tuvo éxito pero la recarga autoritativa falló).
+     No escribe en Supabase; fusiona por id para no duplicar en reintentos
+     de visualización. Retorna la cantidad de filas aplicadas. */
+  reconcileImportedAssets(batch) {
+    if (!Array.isArray(batch) || batch.length === 0) return 0;
+    if (!Array.isArray(this._cache.assets)) this._cache.assets = [];
+    const idxById = new Map();
+    this._cache.assets.forEach((a, i) => { if (a && a.id) idxById.set(a.id, i); });
+    let applied = 0;
+    for (const obj of batch) {
+      if (!obj || !obj.id) continue;
+      if (idxById.has(obj.id)) {
+        this._cache.assets[idxById.get(obj.id)] = { ...obj };
+      } else {
+        idxById.set(obj.id, this._cache.assets.length);
+        this._cache.assets.push({ ...obj });
+      }
+      applied++;
+    }
+    return applied;
   },
 
   /* ====================================================
