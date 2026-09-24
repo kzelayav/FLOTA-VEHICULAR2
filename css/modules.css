@@ -376,3 +376,174 @@
 .summary-stat { text-align: center; }
 .summary-stat-val { font-size: 20px; font-weight: 700; color: var(--text-primary); }
 .summary-stat-lbl { font-size: 10.5px; color: var(--text-tertiary); margin-top: 1px; }
+
+/* ====================================================
+   ASSETS VISUAL MODERNIZATION (controlled, asset-scoped)
+   Only real data + existing handlers. Tokens only.
+   ==================================================== */
+
+.assets-visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Module header ── */
+.assets-page-header { align-items: flex-start; }
+.assets-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.assets-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--brand-primary-subtle);
+  border: 1px solid var(--brand-primary);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.assets-toolbar { align-items: center; }
+.assets-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.assets-hidden-input { display: none; }
+.assets-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── KPI cards (4 real counts, no bars/percentages) ── */
+.assets-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 14px;
+}
+.assets-kpi-card {
+  position: relative;
+  text-align: left;
+  padding: 14px 16px 14px 18px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.assets-kpi-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--brand-primary);
+}
+.assets-kpi-accent-success::before { background: var(--status-success); }
+.assets-kpi-accent-warning::before { background: var(--status-warning); }
+.assets-kpi-accent-danger::before { background: var(--status-danger); }
+.assets-kpi-icon { font-size: 18px; line-height: 1; margin-bottom: 6px; }
+.assets-kpi-value { font-size: 26px; }
+.assets-kpi-label { font-size: 11.5px; font-weight: 600; }
+.assets-kpi-context {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* ── Filter surface (existing 7 filters only) ── */
+.assets-filter-surface { align-items: stretch; }
+.assets-filter-search { flex: 1 1 220px; min-width: 200px; max-width: 400px; }
+.assets-filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  flex: 2 1 420px;
+}
+.assets-filter-field { display: flex; flex-direction: column; }
+.assets-filter-field .assets-filter-control { min-width: 140px; }
+#asset-filter-type { min-width: 150px; }
+#asset-filter-status { min-width: 160px; }
+
+/* ── Result metadata (display-only) ── */
+.assets-results-meta {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin: 0 0 12px 2px;
+}
+
+/* ── Table (14 real columns, CSS-only polish) ── */
+.assets-table-shell { padding: 0; overflow: hidden; }
+.assets-table-wrapper { border-radius: var(--radius) var(--radius) 0 0; box-shadow: none; }
+.assets-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--table-header-bg);
+}
+.assets-table-row:hover { background: var(--table-row-hover); }
+.assets-code-emphasis { font-weight: 700; letter-spacing: 0.01em; }
+.assets-brand { font-weight: 600; }
+.assets-model { color: var(--text-secondary); }
+.assets-action-group { gap: 6px; }
+
+/* ── Cards (existing renderer, action-free) ── */
+.assets-card-grid { align-items: stretch; }
+.assets-card-heading { min-width: 0; }
+.assets-card-code {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-primary);
+}
+.assets-card-brand { font-weight: 600; }
+.assets-card-model { color: var(--text-secondary); font-weight: 500; }
+.assets-card-meta { margin-top: 4px; }
+
+/* ── Pagination (restyle only) ── */
+.assets-pagination {
+  padding: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Detail modal (real fields + 3 existing stat cards) ── */
+.assets-detail-badges { margin-bottom: 12px; }
+.assets-detail-grid { gap: 12px; margin-bottom: 20px; }
+.assets-detail-item {
+  padding: 8px 10px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+}
+.assets-detail-stats { gap: 12px; }
+.assets-detail-stat { padding: 12px; text-align: center; }
+.assets-detail-notes { padding: 12px; margin-bottom: 12px; }
+.assets-detail-notes-text { margin-top: 4px; }
+
+/* ── Create/edit form grouping ── */
+.assets-form-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 16px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-primary);
+}
+.assets-form-group-title:first-child { margin-top: 0; }
+
+/* ── Empty state ── */
+.assets-empty-state { padding: 48px 20px; }

@@ -21,20 +21,25 @@ const AssetsModule = {
     const out   = assets.filter(a=>a.status==='fuera').length;
 
     return `
-    <div class="page-header">
-      <div class="page-header-left">
-        <h2>🚛 Registro de Activos</h2>
+    <div class="page-header assets-page-header">
+      <div class="page-header-left assets-page-heading">
+        <div class="assets-title-row">
+          <h2>🚛 Registro de Activos</h2>
+          <span class="assets-count-badge" aria-label="${total} activos registrados">${total} activos registrados</span>
+        </div>
         <p>Gestión de vehículos, equipos y maquinaria de la flota</p>
       </div>
-      <div class="page-header-right">
-        <button class="btn btn-outline btn-sm" onclick="AssetsModule.toggleView()" id="btn-toggle-view">📋 Vista Tarjetas</button>
+      <div class="page-header-right assets-toolbar">
+        <button class="btn btn-outline btn-sm" onclick="AssetsModule.toggleView()" id="btn-toggle-view" aria-pressed="false" aria-label="Cambiar a vista de tarjetas">📋 Vista Tarjetas</button>
         ${Auth.can('assets') && !['consulta'].includes(Auth.getSession()?.role) ? `
           ${Auth.isAdmin() ? `
-          <button class="btn btn-outline btn-sm" onclick="AssetsModule.downloadTemplate()">📂 Plantilla Excel</button>
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('assets-import-file').click()" style="display:inline-flex; align-items:center; gap:6px;">
+          <span class="assets-toolbar-group">
+          <button class="btn btn-outline btn-sm assets-toolbar-btn" onclick="AssetsModule.downloadTemplate()">📂 Plantilla Excel</button>
+          <button class="btn btn-outline btn-sm assets-toolbar-btn assets-import-btn" onclick="document.getElementById('assets-import-file').click()">
             📤 Importar Excel
           </button>
-          <input type="file" id="assets-import-file" style="display:none" accept=".xlsx,.xls,.csv" onchange="AssetsModule.importExcel(event)">
+          <input type="file" id="assets-import-file" class="assets-hidden-input" accept=".xlsx,.xls,.csv" onchange="AssetsModule.importExcel(event)">
+          </span>
           ` : ''}
           <button class="btn btn-primary" onclick="AssetsModule.openModal()">➕ Nuevo Activo</button>
         ` : ''}
@@ -42,58 +47,87 @@ const AssetsModule = {
     </div>
 
     <!-- Summary -->
-    <div class="summary-stats mb-16">
-      <div class="summary-stat">
-        <div class="summary-stat-val">${total}</div>
-        <div class="summary-stat-lbl">Total Activos</div>
+    <div class="summary-stats mb-16 assets-kpi-grid">
+      <div class="summary-stat assets-kpi-card assets-kpi-accent-total">
+        <div class="assets-kpi-icon" aria-hidden="true">🗂️</div>
+        <div class="summary-stat-val assets-kpi-value">${total}</div>
+        <div class="summary-stat-lbl assets-kpi-label">Total Activos</div>
+        <div class="assets-kpi-context">Activos en el registro</div>
       </div>
-      <div class="summary-stat">
-        <div class="summary-stat-val text-success">${op}</div>
-        <div class="summary-stat-lbl">Operativos</div>
+      <div class="summary-stat assets-kpi-card assets-kpi-accent-success">
+        <div class="assets-kpi-icon" aria-hidden="true">✅</div>
+        <div class="summary-stat-val text-success assets-kpi-value">${op}</div>
+        <div class="summary-stat-lbl assets-kpi-label">Operativos</div>
+        <div class="assets-kpi-context">Listos para operar</div>
       </div>
-      <div class="summary-stat">
-        <div class="summary-stat-val text-warning">${mnt}</div>
-        <div class="summary-stat-lbl">En Mantenimiento</div>
+      <div class="summary-stat assets-kpi-card assets-kpi-accent-warning">
+        <div class="assets-kpi-icon" aria-hidden="true">🔧</div>
+        <div class="summary-stat-val text-warning assets-kpi-value">${mnt}</div>
+        <div class="summary-stat-lbl assets-kpi-label">En Mantenimiento</div>
+        <div class="assets-kpi-context">En taller o revisión</div>
       </div>
-      <div class="summary-stat">
-        <div class="summary-stat-val text-danger">${out}</div>
-        <div class="summary-stat-lbl">Fuera de Servicio</div>
+      <div class="summary-stat assets-kpi-card assets-kpi-accent-danger">
+        <div class="assets-kpi-icon" aria-hidden="true">🔴</div>
+        <div class="summary-stat-val text-danger assets-kpi-value">${out}</div>
+        <div class="summary-stat-lbl assets-kpi-label">Fuera de Servicio</div>
+        <div class="assets-kpi-context">Requieren atención</div>
       </div>
     </div>
 
     <!-- Filters -->
-    <div class="filter-bar">
-      <div class="search-input">
-        <span class="search-icon">🔍</span>
-        <input class="form-control" type="text" placeholder="Buscar código, marca, modelo, placa..." id="asset-search"
+    <div class="filter-bar assets-filter-surface">
+      <div class="search-input assets-filter-search">
+        <label class="assets-visually-hidden" for="asset-search">Buscar activos</label>
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input class="form-control assets-filter-control" type="text" placeholder="Buscar código, marca, modelo, placa..." id="asset-search"
           value="${this.filter.search}" oninput="AssetsModule.setFilter('search',this.value)">
       </div>
-      <select class="form-control" onchange="AssetsModule.setFilter('type',this.value)" style="width:160px">
+      <div class="assets-filter-grid">
+      <div class="assets-filter-field">
+        <label class="assets-visually-hidden" for="asset-filter-type">Tipo de activo</label>
+        <select class="form-control assets-filter-control" id="asset-filter-type" onchange="AssetsModule.setFilter('type',this.value)">
         <option value="">Todos los tipos</option>
         ${['Motocicleta','Camioneta','Carro','Camión','Montacarga','Cabezal','Remolque','Tractor','Generador','Equipo Industrial'].map(t=>`<option value="${t}" ${this.filter.type===t?'selected':''}>${t}</option>`).join('')}
       </select>
-      <select class="form-control" onchange="AssetsModule.setFilter('status',this.value)" style="width:170px">
+      </div>
+      <div class="assets-filter-field">
+        <label class="assets-visually-hidden" for="asset-filter-status">Estado del activo</label>
+        <select class="form-control assets-filter-control" id="asset-filter-status" onchange="AssetsModule.setFilter('status',this.value)">
         <option value="">Todos los estados</option>
         <option value="operativo"    ${this.filter.status==='operativo'?'selected':''}>✅ Operativo</option>
         <option value="mantenimiento"${this.filter.status==='mantenimiento'?'selected':''}>🔧 Mantenimiento</option>
         <option value="fuera"        ${this.filter.status==='fuera'?'selected':''}>🔴 Fuera de Servicio</option>
       </select>
-      <select class="form-control" onchange="AssetsModule.setFilter('location',this.value)" style="width:150px">
+      </div>
+      <div class="assets-filter-field">
+        <label class="assets-visually-hidden" for="asset-filter-location">Planta o ubicación</label>
+        <select class="form-control assets-filter-control" id="asset-filter-location" onchange="AssetsModule.setFilter('location',this.value)">
         <option value="">Todas las plantas</option>
         ${locations.map(l=>`<option value="${l}" ${this.filter.location===l?'selected':''}>${l}</option>`).join('')}
       </select>
-      <select class="form-control" onchange="AssetsModule.setFilter('area',this.value)" style="width:140px">
+      </div>
+      <div class="assets-filter-field">
+        <label class="assets-visually-hidden" for="asset-filter-area">Área</label>
+        <select class="form-control assets-filter-control" id="asset-filter-area" onchange="AssetsModule.setFilter('area',this.value)">
         <option value="">Todas las áreas</option>
         ${areas.map(a=>`<option value="${a}" ${this.filter.area===a?'selected':''}>${a}</option>`).join('')}
       </select>
-      <select class="form-control" onchange="AssetsModule.setFilter('localidad',this.value)" style="width:140px">
+      </div>
+      <div class="assets-filter-field">
+        <label class="assets-visually-hidden" for="asset-filter-localidad">Localidad</label>
+        <select class="form-control assets-filter-control" id="asset-filter-localidad" onchange="AssetsModule.setFilter('localidad',this.value)">
         <option value="">Todas las localidades</option>
         ${localidades.map(l=>`<option value="${l}" ${this.filter.localidad===l?'selected':''}>${l}</option>`).join('')}
       </select>
-      <select class="form-control" onchange="AssetsModule.setFilter('departamento',this.value)" style="width:150px">
+      </div>
+      <div class="assets-filter-field">
+        <label class="assets-visually-hidden" for="asset-filter-departamento">Departamento</label>
+        <select class="form-control assets-filter-control" id="asset-filter-departamento" onchange="AssetsModule.setFilter('departamento',this.value)">
         <option value="">Todos los departamentos</option>
         ${deptos.map(d=>`<option value="${d}" ${this.filter.departamento===d?'selected':''}>${d}</option>`).join('')}
       </select>
+      </div>
+      </div>
     </div>
 
     <!-- Content -->
@@ -105,6 +139,7 @@ const AssetsModule = {
 
   renderContent() {
     let data = DB.getAssets();
+    const totalCount = data.length;
     const f  = this.filter;
     if (f.search)       data = data.filter(a => `${a.code}${a.brand}${a.model}${a.plate}${a.type}${a.area||''}${a.localidad||''}${a.departamento||''}`.toLowerCase().includes(f.search.toLowerCase()));
     if (f.type)         data = data.filter(a => a.type === f.type);
@@ -114,10 +149,17 @@ const AssetsModule = {
     if (f.localidad)    data = data.filter(a => a.localidad === f.localidad);
     if (f.departamento) data = data.filter(a => a.departamento === f.departamento);
 
-    if (data.length === 0) return `<div class="empty-state"><div class="empty-icon">🚛</div><h3>Sin activos</h3><p>Agrega el primer activo de tu flota.</p></div>`;
+    const filteredCount = data.length;
+    const filtersActive = Boolean(f.search || f.type || f.status || f.location || f.area || f.localidad || f.departamento);
+    const metaText = filteredCount === 0
+      ? (filtersActive ? `Sin resultados para los filtros aplicados de ${totalCount} registrados` : `Sin activos registrados`)
+      : (filtersActive ? `${filteredCount} activos coinciden con los filtros de ${totalCount} registrados` : `Mostrando ${filteredCount} activos de ${totalCount} registrados`);
+    const metaHtml = `<div class="assets-results-meta" role="status">${metaText}</div>`;
 
-    if (this.view === 'cards') return this.renderCards(data);
-    return this.renderTable(data);
+    if (data.length === 0) return `${metaHtml}<div class="empty-state assets-empty-state"><div class="empty-icon" aria-hidden="true">🚛</div><h3>Sin activos</h3><p>Agrega el primer activo de tu flota.</p></div>`;
+
+    if (this.view === 'cards') return `${metaHtml}${this.renderCards(data)}`;
+    return `${metaHtml}${this.renderTable(data)}`;
   },
 
   renderTable(data) {
@@ -127,21 +169,21 @@ const AssetsModule = {
     const canEdit = Auth.getSession()?.role !== 'consulta';
 
     return `
-    <div class="card" style="padding:0">
-      <div class="table-wrapper">
-        <table>
+    <div class="card assets-table-shell">
+      <div class="table-wrapper assets-table-wrapper">
+        <table class="assets-table">
           <thead><tr>
-            <th>•</th><th>Código</th><th>Tipo</th><th>Marca / Modelo</th><th>Año</th>
-            <th>Placa</th><th>Ubicación</th><th>Área</th><th>Localidad</th><th>Departamento</th>
-            <th>Responsable</th><th>Estado</th><th>Medidor</th><th>Acciones</th>
+            <th scope="col" class="assets-col-status"><span class="assets-visually-hidden">Estado visual</span><span aria-hidden="true">•</span></th><th scope="col">Código</th><th scope="col">Tipo</th><th scope="col">Marca / Modelo</th><th scope="col">Año</th>
+            <th scope="col">Placa</th><th scope="col">Ubicación</th><th scope="col">Área</th><th scope="col">Localidad</th><th scope="col">Departamento</th>
+            <th scope="col">Responsable</th><th scope="col">Estado</th><th scope="col">Medidor</th><th scope="col">Acciones</th>
           </tr></thead>
           <tbody>
             ${page.map(a=>`
-            <tr>
-              <td><span class="semaphore ${a.status==='operativo'?'sem-green':a.status==='mantenimiento'?'sem-yellow':'sem-red'}"></span></td>
-              <td><strong>${a.code}</strong></td>
-              <td>${getAssetIcon(a.type)} ${a.type}</td>
-              <td>${a.brand} ${a.model}</td>
+            <tr class="assets-table-row">
+              <td><span class="semaphore ${a.status==='operativo'?'sem-green':a.status==='mantenimiento'?'sem-yellow':'sem-red'}" aria-hidden="true"></span></td>
+              <td><strong class="assets-code-emphasis">${a.code}</strong></td>
+              <td><span aria-hidden="true">${getAssetIcon(a.type)}</span> ${a.type}</td>
+              <td><span class="assets-brand">${a.brand}</span> <span class="assets-model">${a.model}</span></td>
               <td>${a.year}</td>
               <td>${a.plate||'—'}</td>
               <td>${a.location||'—'}</td>
@@ -152,32 +194,32 @@ const AssetsModule = {
               <td>${statusBadge(a.status)}</td>
               <td class="text-sm">${a.currentKm>0?fmtKm(a.currentKm):''}${a.currentHours>0?fmtHours(a.currentHours):''}</td>
               <td>
-                <div class="table-actions">
-                  <button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.viewDetail('${a.id}')" title="Ver detalle">👁️</button>
-                  ${canEdit?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.openModal('${a.id}')" title="Editar">✏️</button>`:''}
-                  ${Auth.isAdmin()?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.deleteAsset('${a.id}')" title="Eliminar">🗑️</button>`:''}
+                <div class="table-actions assets-action-group">
+                  <button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.viewDetail('${a.id}')" title="Ver detalle" aria-label="Ver detalle de ${a.code}">👁️</button>
+                  ${canEdit?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.openModal('${a.id}')" title="Editar" aria-label="Editar ${a.code}">✏️</button>`:''}
+                  ${Auth.isAdmin()?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.deleteAsset('${a.id}')" title="Eliminar" aria-label="Eliminar ${a.code}">🗑️</button>`:''}
                 </div>
               </td>
             </tr>`).join('')}
           </tbody>
         </table>
       </div>
-      ${pages>1?`<div class="pagination">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===this.currentPage?'active':''}" onclick="AssetsModule.goPage(${i+1})">${i+1}</button>`).join('')}</div>`:''}
+      ${pages>1?`<div class="pagination assets-pagination" role="navigation" aria-label="Paginación de activos">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===this.currentPage?'active':''}" ${i+1===this.currentPage?'aria-current="page"':''} aria-label="Ir a la página ${i+1}" onclick="AssetsModule.goPage(${i+1})">${i+1}</button>`).join('')}</div>`:''}
     </div>`;
   },
 
   renderCards(data) {
-    return `<div class="asset-cards-grid">${data.map(a=>`
-    <div class="asset-card">
-      <div class="asset-card-header">
-        <div class="asset-type-icon">${getAssetIcon(a.type)}</div>
-        <div>
-          <div class="asset-code">${a.code}</div>
-          <div class="asset-name">${a.brand} ${a.model}</div>
+    return `<div class="asset-cards-grid assets-card-grid">${data.map(a=>`
+    <div class="asset-card assets-card">
+      <div class="asset-card-header assets-card-header">
+        <div class="asset-type-icon" aria-hidden="true">${getAssetIcon(a.type)}</div>
+        <div class="assets-card-heading">
+          <div class="asset-code assets-card-code">${a.code}</div>
+          <div class="asset-name"><span class="assets-card-brand">${a.brand}</span> <span class="assets-card-model">${a.model}</span></div>
         </div>
         <div class="asset-card-status">${statusBadge(a.status)}</div>
       </div>
-      <div class="asset-meta">
+      <div class="asset-meta assets-card-meta">
         <div class="asset-meta-item"><div class="asset-meta-label">Tipo</div><div class="asset-meta-value">${a.type}</div></div>
         <div class="asset-meta-item"><div class="asset-meta-label">Año</div><div class="asset-meta-value">${a.year}</div></div>
         <div class="asset-meta-item"><div class="asset-meta-label">Placa</div><div class="asset-meta-value">${a.plate||'—'}</div></div>
@@ -186,8 +228,8 @@ const AssetsModule = {
         <div class="asset-meta-item"><div class="asset-meta-label">Localidad</div><div class="asset-meta-value">${a.localidad||'—'}</div></div>
         <div class="asset-meta-item"><div class="asset-meta-label">Depto.</div><div class="asset-meta-value">${a.departamento||'—'}</div></div>
       </div>
-      <div class="asset-card-footer">
-        <div class="meter-info">📍 ${a.responsible||'Sin responsable'}</div>
+      <div class="asset-card-footer assets-card-footer">
+        <div class="meter-info"><span aria-hidden="true">📍</span> ${a.responsible||'Sin responsable'}</div>
         <div class="meter-value">${a.currentKm>0?fmtKm(a.currentKm):''}${a.currentHours>0?`${fmtHours(a.currentHours)}`:'—'}</div>
       </div>
     </div>`).join('')}</div>`;
@@ -203,7 +245,12 @@ const AssetsModule = {
 
   toggleView() {
     this.view = this.view === 'table' ? 'cards' : 'table';
-    document.getElementById('btn-toggle-view').textContent = this.view==='table'?'📋 Vista Tarjetas':'📊 Vista Tabla';
+    const btn = document.getElementById('btn-toggle-view');
+    if (btn) {
+      btn.textContent = this.view==='table'?'📋 Vista Tarjetas':'📊 Vista Tabla';
+      btn.setAttribute('aria-pressed', this.view==='cards' ? 'true' : 'false');
+      btn.setAttribute('aria-label', this.view==='table' ? 'Cambiar a vista de tarjetas' : 'Cambiar a vista de tabla');
+    }
     document.getElementById('assets-content').innerHTML = this.renderContent();
   },
 
@@ -213,84 +260,96 @@ const AssetsModule = {
     const v = asset || { code:'',type:'Camión',brand:'',model:'',year:new Date().getFullYear(),plate:'',serial:'',location:'',responsible:'',usuario:'',area:'',localidad:'',departamento:'',status:'operativo',currentKm:0,currentHours:0,notes:'',inspectionDate:'' };
 
     showModal('asset-modal-placeholder', title, `
-    <div class="form-grid">
+    <div class="assets-form">
+    <h3 class="assets-form-group-title">Identificación</h3>
+    <div class="form-grid assets-form-grid">
       <div class="form-group">
-        <label class="form-label">Código de Activo *</label>
+        <label class="form-label" for="af-code">Código de Activo *</label>
         <input class="form-control" id="af-code" value="${v.code}" placeholder="CAM-001">
       </div>
       <div class="form-group">
-        <label class="form-label">Tipo de Equipo *</label>
+        <label class="form-label" for="af-type">Tipo de Equipo *</label>
         <select class="form-control" id="af-type">
           ${['Motocicleta','Camioneta','Carro','Camión','Montacarga','Cabezal','Remolque','Tractor','Generador','Equipo Industrial'].map(t=>`<option ${v.type===t?'selected':''}>${t}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Marca *</label>
+        <label class="form-label" for="af-brand">Marca *</label>
         <input class="form-control" id="af-brand" value="${v.brand}" placeholder="Freightliner">
       </div>
       <div class="form-group">
-        <label class="form-label">Modelo *</label>
+        <label class="form-label" for="af-model">Modelo *</label>
         <input class="form-control" id="af-model" value="${v.model}" placeholder="Cascadia">
       </div>
+    </div>
+    <h3 class="assets-form-group-title">Información técnica</h3>
+    <div class="form-grid assets-form-grid">
       <div class="form-group">
-        <label class="form-label">Año</label>
+        <label class="form-label" for="af-year">Año</label>
         <input class="form-control" type="number" id="af-year" value="${v.year}" min="1990" max="2030">
       </div>
       <div class="form-group">
-        <label class="form-label">Placa</label>
+        <label class="form-label" for="af-plate">Placa</label>
         <input class="form-control" id="af-plate" value="${v.plate}" placeholder="P-1234-A">
       </div>
       <div class="form-group">
-        <label class="form-label">Número de Serie</label>
+        <label class="form-label" for="af-serial">Número de Serie</label>
         <input class="form-control" id="af-serial" value="${v.serial}" placeholder="VIN/Serial">
       </div>
       <div class="form-group">
-        <label class="form-label">Ubicación / Planta</label>
+        <label class="form-label" for="af-inspection">Venc. Inspección Mec. y Gases</label>
+        <input class="form-control" type="date" id="af-inspection" value="${v.inspectionDate||''}">
+      </div>
+    </div>
+    <h3 class="assets-form-group-title">Asignación</h3>
+    <div class="form-grid assets-form-grid">
+      <div class="form-group">
+        <label class="form-label" for="af-location">Ubicación / Planta</label>
         <input class="form-control" id="af-location" value="${v.location}" placeholder="Planta Norte">
       </div>
       <div class="form-group">
-        <label class="form-label">Área</label>
+        <label class="form-label" for="af-area">Área</label>
         <input class="form-control" id="af-area" value="${v.area||''}" placeholder="Área operativa">
       </div>
       <div class="form-group">
-        <label class="form-label">Localidad</label>
+        <label class="form-label" for="af-localidad">Localidad</label>
         <input class="form-control" id="af-localidad" value="${v.localidad||''}" placeholder="Ciudad / Localidad">
       </div>
       <div class="form-group">
-        <label class="form-label">Departamento</label>
+        <label class="form-label" for="af-departamento">Departamento</label>
         <input class="form-control" id="af-departamento" value="${v.departamento||''}" placeholder="Departamento">
       </div>
       <div class="form-group">
-        <label class="form-label">Usuario</label>
+        <label class="form-label" for="af-usuario">Usuario</label>
         <input class="form-control" id="af-usuario" value="${v.usuario||''}" placeholder="Usuario asignado">
       </div>
       <div class="form-group">
-        <label class="form-label">Responsable</label>
+        <label class="form-label" for="af-responsible">Responsable</label>
         <input class="form-control" id="af-responsible" value="${v.responsible}" placeholder="Nombre del responsable">
       </div>
       <div class="form-group">
-        <label class="form-label">Estado</label>
+        <label class="form-label" for="af-status">Estado</label>
         <select class="form-control" id="af-status">
           <option value="operativo"     ${v.status==='operativo'?'selected':''}>✅ Operativo</option>
           <option value="mantenimiento" ${v.status==='mantenimiento'?'selected':''}>🔧 En Mantenimiento</option>
           <option value="fuera"         ${v.status==='fuera'?'selected':''}>🔴 Fuera de Servicio</option>
         </select>
       </div>
+    </div>
+    <h3 class="assets-form-group-title">Lecturas actuales</h3>
+    <div class="form-grid assets-form-grid">
       <div class="form-group">
-        <label class="form-label">Odómetro actual (km)</label>
+        <label class="form-label" for="af-km">Odómetro actual (km)</label>
         <input class="form-control" type="number" id="af-km" value="${v.currentKm||0}" min="0">
       </div>
       <div class="form-group">
-        <label class="form-label">Horómetro actual (hrs)</label>
+        <label class="form-label" for="af-hours">Horómetro actual (hrs)</label>
         <input class="form-control" type="number" id="af-hours" value="${v.currentHours||0}" min="0">
       </div>
-      <div class="form-group">
-        <label class="form-label">Venc. Inspección Mec. y Gases</label>
-        <input class="form-control" type="date" id="af-inspection" value="${v.inspectionDate||''}">
-      </div>
+    </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Observaciones</label>
+      <label class="form-label" for="af-notes">Observaciones</label>
       <textarea class="form-control" id="af-notes" placeholder="Notas adicionales...">${v.notes||''}</textarea>
     </div>`,
     `<button class="btn btn-secondary" onclick="closeModal('asset-modal-placeholder')">Cancelar</button>
@@ -686,32 +745,35 @@ const AssetsModule = {
     ].reduce((s,r)=>s+(parseFloat(r.cost||r.totalCost)||0),0);
     const faults    = DB.getCorrective().filter(c=>c.assetId===id).length;
 
-    showModal('asset-modal-placeholder', `${getAssetIcon(a.type)} ${a.code} — ${a.brand} ${a.model}`, `
-    <div class="form-grid" style="gap:12px;margin-bottom:20px">
+    showModal('asset-modal-placeholder', `<span aria-hidden="true">${getAssetIcon(a.type)}</span> ${a.code} — ${a.brand} ${a.model}`, `
+    <div class="assets-detail">
+    <div class="assets-detail-badges"><span class="assets-count-badge">${a.code}</span></div>
+    <div class="form-grid assets-detail-grid">
       ${[
         ['Código',a.code],['Tipo',a.type],['Marca',a.brand],['Modelo',a.model],['Año',a.year],
         ['Placa',a.plate||'—'],['Serie',a.serial||'—'],['Ubicación',a.location||'—'],
         ['Área',a.area||'—'],['Localidad',a.localidad||'—'],['Departamento',a.departamento||'—'],
         ['Usuario',a.usuario||'—'],['Responsable',a.responsible||'—'],['Estado',a.status]
       ].map(([l,v])=>`
-      <div><div class="form-label">${l}</div><div class="fw-700">${l==='Estado'?statusBadge(v):v}</div></div>`).join('')}
+      <div class="assets-detail-item"><div class="form-label">${l}</div><div class="fw-700">${l==='Estado'?statusBadge(v):v}</div></div>`).join('')}
     </div>
     <div class="divider"></div>
-    <div class="grid-3 mb-16" style="gap:12px">
-      <div class="card" style="padding:12px;text-align:center">
+    <div class="grid-3 mb-16 assets-detail-stats">
+      <div class="card assets-detail-stat">
         <div class="stat-number text-primary">${fmtCurrency(totalCost)}</div>
         <div class="text-sm text-muted">Costo Total</div>
       </div>
-      <div class="card" style="padding:12px;text-align:center">
+      <div class="card assets-detail-stat">
         <div class="stat-number text-danger">${faults}</div>
         <div class="text-sm text-muted">Fallas Registradas</div>
       </div>
-      <div class="card" style="padding:12px;text-align:center">
+      <div class="card assets-detail-stat">
         <div class="stat-number text-success">${a.currentKm>0?fmtKm(a.currentKm):fmtHours(a.currentHours)}</div>
         <div class="text-sm text-muted">Medidor Actual</div>
       </div>
     </div>
-    ${a.notes?`<div class="card" style="padding:12px;margin-bottom:12px"><div class="text-sm text-muted">Observaciones</div><div style="margin-top:4px">${a.notes}</div></div>`:''}
+    ${a.notes?`<div class="card assets-detail-notes"><div class="text-sm text-muted">Observaciones</div><div class="assets-detail-notes-text">${a.notes}</div></div>`:''}
+    </div>
     `, `<button class="btn btn-secondary" onclick="closeModal('asset-modal-placeholder')">Cerrar</button>
         <button class="btn btn-primary" onclick="closeModal('asset-modal-placeholder');AssetsModule.openModal('${id}')">✏️ Editar</button>`, 'modal-lg');
   },

@@ -364,3 +364,50 @@
     display: none;
   }
 }
+
+/* ====================================================
+   ASSETS RESPONSIVE (targeted, asset-scoped only)
+   ==================================================== */
+
+/* ── Above 1200px: 4 KPI columns, header row, multi-col filters ── */
+@media (min-width: 1201px) {
+  .assets-kpi-grid { grid-template-columns: repeat(4, 1fr); }
+  .assets-page-header { flex-direction: row; }
+  .assets-card-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+}
+
+/* ── 769–1200px: actions wrap, 2-col KPIs, filters wrap, table scrolls ── */
+@media (max-width: 1200px) and (min-width: 769px) {
+  .assets-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .assets-toolbar { flex-wrap: wrap; }
+  .assets-filter-grid { flex-basis: 100%; }
+  .assets-table-wrapper { overflow-x: auto; }
+  .assets-card-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── ≤768px: header stacks, 2-col KPIs, 1-col filters/cards ── */
+@media (max-width: 768px) {
+  .assets-page-header { flex-direction: column; }
+  .assets-toolbar { width: 100%; }
+  .assets-toolbar .btn { flex: 1 1 auto; justify-content: center; }
+  .assets-toolbar-group { width: 100%; }
+  .assets-toolbar-group .btn { flex: 1 1 auto; }
+  .assets-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .assets-filter-surface { flex-direction: column; align-items: stretch; }
+  .assets-filter-search { min-width: 0; max-width: none; width: 100%; }
+  .assets-filter-grid { flex-direction: column; align-items: stretch; flex-basis: auto; }
+  .assets-filter-field .assets-filter-control { width: 100%; min-width: 0; }
+  .assets-table-wrapper { overflow-x: auto; }
+  .assets-card-grid { grid-template-columns: 1fr; }
+  .assets-pagination { justify-content: flex-start; overflow-x: auto; }
+  .assets-detail-stats { grid-template-columns: 1fr; }
+}
+
+/* ── ≤480px: 1-col KPIs/actions/filters, pagination wraps ── */
+@media (max-width: 480px) {
+  .assets-kpi-grid { grid-template-columns: 1fr; }
+  .assets-title-row { align-items: flex-start; }
+  .assets-toolbar { flex-direction: column; align-items: stretch; }
+  .assets-toolbar .btn { width: 100%; }
+  .assets-pagination { flex-wrap: wrap; }
+}
