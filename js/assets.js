@@ -7,6 +7,7 @@ const AssetsModule = {
   filter: { search:'', type:'', status:'', location:'', area:'', localidad:'', departamento:'' },
   currentPage: 1,
   perPage: 10,
+  selectedAssetId: null, // V2 display-only row selection: one asset id, in-memory only, never persisted/audited
 
   render() {
     const assets      = DB.getAssets();
@@ -21,16 +22,19 @@ const AssetsModule = {
     const out   = assets.filter(a=>a.status==='fuera').length;
 
     return `
-    <div class="page-header assets-page-header">
-      <div class="page-header-left assets-page-heading">
-        <div class="assets-title-row">
+    <div class="page-header assets-v2-header">
+      <div class="page-header-left assets-v2-header-left">
+        <div class="assets-v2-title-row">
           <h2>🚛 Registro de Activos</h2>
           <span class="assets-count-badge" aria-label="${total} activos registrados">${total} activos registrados</span>
         </div>
         <p>Gestión de vehículos, equipos y maquinaria de la flota</p>
       </div>
-      <div class="page-header-right assets-toolbar">
-        <button class="btn btn-outline btn-sm" onclick="AssetsModule.toggleView()" id="btn-toggle-view" aria-pressed="false" aria-label="Cambiar a vista de tarjetas">📋 Vista Tarjetas</button>
+      <div class="page-header-right assets-toolbar assets-v2-toolbar">
+        <div class="assets-v2-view-switch" role="group" aria-label="Cambiar vista de activos">
+          <button class="btn btn-outline btn-sm assets-v2-view-btn" id="assets-view-table" aria-pressed="${this.view==='table'}" aria-label="Vista Tabla" onclick="if(AssetsModule.view!=='table'){AssetsModule.toggleView()}">📊 Vista Tabla</button>
+          <button class="btn btn-outline btn-sm assets-v2-view-btn" id="assets-view-cards" aria-pressed="${this.view==='cards'}" aria-label="Vista Tarjetas" onclick="if(AssetsModule.view!=='cards'){AssetsModule.toggleView()}">📋 Vista Tarjetas</button>
+        </div>
         ${Auth.can('assets') && !['consulta'].includes(Auth.getSession()?.role) ? `
           ${Auth.isAdmin() ? `
           <span class="assets-toolbar-group">
@@ -47,42 +51,42 @@ const AssetsModule = {
     </div>
 
     <!-- Summary -->
-    <div class="summary-stats mb-16 assets-kpi-grid">
-      <div class="summary-stat assets-kpi-card assets-kpi-accent-total">
-        <div class="assets-kpi-icon" aria-hidden="true">🗂️</div>
-        <div class="summary-stat-val assets-kpi-value">${total}</div>
-        <div class="summary-stat-lbl assets-kpi-label">Total Activos</div>
-        <div class="assets-kpi-context">Activos en el registro</div>
+    <div class="assets-v2-kpi-grid">
+      <div class="assets-v2-kpi assets-v2-kpi-total">
+        <div class="assets-v2-kpi-icon" aria-hidden="true">🗂️</div>
+        <div class="assets-v2-kpi-value">${total}</div>
+        <div class="assets-v2-kpi-label">Total Activos</div>
+        <div class="assets-v2-kpi-context">Activos registrados</div>
       </div>
-      <div class="summary-stat assets-kpi-card assets-kpi-accent-success">
-        <div class="assets-kpi-icon" aria-hidden="true">✅</div>
-        <div class="summary-stat-val text-success assets-kpi-value">${op}</div>
-        <div class="summary-stat-lbl assets-kpi-label">Operativos</div>
-        <div class="assets-kpi-context">Listos para operar</div>
+      <div class="assets-v2-kpi assets-v2-kpi-success">
+        <div class="assets-v2-kpi-icon" aria-hidden="true">✅</div>
+        <div class="assets-v2-kpi-value text-success">${op}</div>
+        <div class="assets-v2-kpi-label">Operativos</div>
+        <div class="assets-v2-kpi-context">Disponibles para operación</div>
       </div>
-      <div class="summary-stat assets-kpi-card assets-kpi-accent-warning">
-        <div class="assets-kpi-icon" aria-hidden="true">🔧</div>
-        <div class="summary-stat-val text-warning assets-kpi-value">${mnt}</div>
-        <div class="summary-stat-lbl assets-kpi-label">En Mantenimiento</div>
-        <div class="assets-kpi-context">En taller o revisión</div>
+      <div class="assets-v2-kpi assets-v2-kpi-warning">
+        <div class="assets-v2-kpi-icon" aria-hidden="true">🔧</div>
+        <div class="assets-v2-kpi-value text-warning">${mnt}</div>
+        <div class="assets-v2-kpi-label">En Mantenimiento</div>
+        <div class="assets-v2-kpi-context">Unidades en revisión</div>
       </div>
-      <div class="summary-stat assets-kpi-card assets-kpi-accent-danger">
-        <div class="assets-kpi-icon" aria-hidden="true">🔴</div>
-        <div class="summary-stat-val text-danger assets-kpi-value">${out}</div>
-        <div class="summary-stat-lbl assets-kpi-label">Fuera de Servicio</div>
-        <div class="assets-kpi-context">Requieren atención</div>
+      <div class="assets-v2-kpi assets-v2-kpi-danger">
+        <div class="assets-v2-kpi-icon" aria-hidden="true">🔴</div>
+        <div class="assets-v2-kpi-value text-danger">${out}</div>
+        <div class="assets-v2-kpi-label">Fuera de Servicio</div>
+        <div class="assets-v2-kpi-context">Requieren atención</div>
       </div>
     </div>
 
     <!-- Filters -->
-    <div class="filter-bar assets-filter-surface">
+    <div class="filter-bar assets-filter-surface assets-v2-filters">
+      <div class="assets-v2-filter-primary">
       <div class="search-input assets-filter-search">
         <label class="assets-visually-hidden" for="asset-search">Buscar activos</label>
         <span class="search-icon" aria-hidden="true">🔍</span>
         <input class="form-control assets-filter-control" type="text" placeholder="Buscar código, marca, modelo, placa..." id="asset-search"
           value="${this.filter.search}" oninput="AssetsModule.setFilter('search',this.value)">
       </div>
-      <div class="assets-filter-grid">
       <div class="assets-filter-field">
         <label class="assets-visually-hidden" for="asset-filter-type">Tipo de activo</label>
         <select class="form-control assets-filter-control" id="asset-filter-type" onchange="AssetsModule.setFilter('type',this.value)">
@@ -106,6 +110,8 @@ const AssetsModule = {
         ${locations.map(l=>`<option value="${l}" ${this.filter.location===l?'selected':''}>${l}</option>`).join('')}
       </select>
       </div>
+      </div>
+      <div class="assets-v2-filter-secondary">
       <div class="assets-filter-field">
         <label class="assets-visually-hidden" for="asset-filter-area">Área</label>
         <select class="form-control assets-filter-control" id="asset-filter-area" onchange="AssetsModule.setFilter('area',this.value)">
@@ -156,7 +162,12 @@ const AssetsModule = {
       : (filtersActive ? `${filteredCount} activos coinciden con los filtros de ${totalCount} registrados` : `Mostrando ${filteredCount} activos de ${totalCount} registrados`);
     const metaHtml = `<div class="assets-results-meta" role="status">${metaText}</div>`;
 
-    if (data.length === 0) return `${metaHtml}<div class="empty-state assets-empty-state"><div class="empty-icon" aria-hidden="true">🚛</div><h3>Sin activos</h3><p>Agrega el primer activo de tu flota.</p></div>`;
+    if (data.length === 0) {
+      this.selectedAssetId = null;
+      const emptyStateHtml = `<div class="empty-state assets-empty-state"><div class="empty-icon" aria-hidden="true">🚛</div><h3>Sin activos</h3><p>Agrega el primer activo de tu flota.</p></div>`;
+      if (this.view === 'cards') return `${metaHtml}${emptyStateHtml}`;
+      return `${metaHtml}<div class="assets-v2-content-grid">${emptyStateHtml}<aside class="card assets-v2-detail-panel" aria-label="Ficha del activo seleccionado"><div class="assets-v2-panel-head"><h3>Ficha del Activo</h3></div><div class="empty-state assets-v2-panel-empty"><div class="empty-icon" aria-hidden="true">🚛</div><h3>Sin activo seleccionado</h3><p>No hay activos para mostrar.</p></div></aside></div>`;
+    }
 
     if (this.view === 'cards') return `${metaHtml}${this.renderCards(data)}`;
     return `${metaHtml}${this.renderTable(data)}`;
@@ -168,8 +179,25 @@ const AssetsModule = {
     const pages = Math.ceil(data.length/this.perPage);
     const canEdit = Auth.getSession()?.role !== 'consulta';
 
+    // V2 display-only selection reconciliation: effective selection is always a real
+    // id from the current page (first row fallback, null when empty). Stored hint is
+    // refreshed so table and panel can never disagree; view/currentPage untouched,
+    // nothing persisted, nothing audited.
+    const pageIds = page.map(a=>a.id);
+    if (!pageIds.includes(this.selectedAssetId)) {
+      this.selectedAssetId = pageIds[0] || null;
+    }
+    const sel = this.selectedAssetId ? DB.getAsset(this.selectedAssetId) : null;
+    // V2 read-only aggregates — expressions identical to viewDetail (no persistence).
+    const selTotalCost = sel ? [
+      ...DB.getPreventive().filter(p=>p.assetId===sel.id),
+      ...DB.getCorrective().filter(c=>c.assetId===sel.id)
+    ].reduce((s,r)=>s+(parseFloat(r.cost||r.totalCost)||0),0) : 0;
+    const selFaults = sel ? DB.getCorrective().filter(c=>c.assetId===sel.id).length : 0;
+
     return `
-    <div class="card assets-table-shell">
+    <div class="assets-v2-content-grid">
+    <section class="card assets-table-shell assets-v2-table-region" aria-label="Listado de activos">
       <div class="table-wrapper assets-table-wrapper">
         <table class="assets-table">
           <thead><tr>
@@ -178,10 +206,12 @@ const AssetsModule = {
             <th scope="col">Responsable</th><th scope="col">Estado</th><th scope="col">Medidor</th><th scope="col">Acciones</th>
           </tr></thead>
           <tbody>
-            ${page.map(a=>`
-            <tr class="assets-table-row">
+            ${page.map(a=>{
+              const isSel = sel && a.id===sel.id;
+              return `
+            <tr class="assets-table-row${isSel?' assets-v2-selected':''}">
               <td><span class="semaphore ${a.status==='operativo'?'sem-green':a.status==='mantenimiento'?'sem-yellow':'sem-red'}" aria-hidden="true"></span></td>
-              <td><strong class="assets-code-emphasis">${a.code}</strong></td>
+              <td><button class="assets-v2-select" aria-pressed="${isSel?'true':'false'}" aria-label="Seleccionar activo ${a.code}" title="Seleccionar ${a.code}" onclick="AssetsModule.selectAsset('${a.id}')"><strong class="assets-code-emphasis">${a.code}</strong></button></td>
               <td><span aria-hidden="true">${getAssetIcon(a.type)}</span> ${a.type}</td>
               <td><span class="assets-brand">${a.brand}</span> <span class="assets-model">${a.model}</span></td>
               <td>${a.year}</td>
@@ -200,26 +230,62 @@ const AssetsModule = {
                   ${Auth.isAdmin()?`<button class="btn btn-outline btn-icon btn-sm" onclick="AssetsModule.deleteAsset('${a.id}')" title="Eliminar" aria-label="Eliminar ${a.code}">🗑️</button>`:''}
                 </div>
               </td>
-            </tr>`).join('')}
+            </tr>`;}).join('')}
           </tbody>
         </table>
       </div>
-      ${pages>1?`<div class="pagination assets-pagination" role="navigation" aria-label="Paginación de activos">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===this.currentPage?'active':''}" ${i+1===this.currentPage?'aria-current="page"':''} aria-label="Ir a la página ${i+1}" onclick="AssetsModule.goPage(${i+1})">${i+1}</button>`).join('')}</div>`:''}
+      ${pages>1?`<div class="assets-v2-pagination-footer"><div class="pagination assets-pagination" role="navigation" aria-label="Paginación de activos">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===this.currentPage?'active':''}" ${i+1===this.currentPage?'aria-current="page"':''} aria-label="Ir a la página ${i+1}" onclick="AssetsModule.goPage(${i+1})">${i+1}</button>`).join('')}</div></div>`:''}
+    </section>
+    <aside class="card assets-v2-detail-panel" aria-label="Ficha del activo seleccionado">
+      ${sel ? `
+      <div class="assets-v2-panel-head">
+        <h3>Ficha del Activo</h3>
+        <span class="assets-v2-panel-code">${sel.code}</span>
+      </div>
+      <div class="assets-v2-panel-identity">
+        <div class="assets-v2-panel-name">${sel.brand} ${sel.model}</div>
+        <div class="assets-v2-panel-sub">${sel.type} · ${sel.year}</div>
+        <div class="assets-v2-panel-status">${statusBadge(sel.status)}</div>
+      </div>
+      <div class="assets-v2-detail-section">
+        ${[
+          ['Placa',sel.plate||'—'],['Serie',sel.serial||'—'],['Ubicación',sel.location||'—'],
+          ['Área',sel.area||'—'],['Localidad',sel.localidad||'—'],['Departamento',sel.departamento||'—'],
+          ['Responsable',sel.responsible||'—'],['Usuario',sel.usuario||'—'],
+          ['Kilometraje',sel.currentKm>0?fmtKm(sel.currentKm):'—'],['Horómetro',sel.currentHours>0?fmtHours(sel.currentHours):'—'],
+          ['Inspección',sel.inspectionDate||'—']
+        ].map(([l,v])=>`<div class="assets-v2-detail-item"><div class="assets-v2-detail-label">${l}</div><div class="assets-v2-detail-value">${v}</div></div>`).join('')}
+      </div>
+      <div class="assets-v2-detail-stats">
+        <div class="assets-v2-detail-stat"><div class="assets-v2-detail-stat-val text-primary">${fmtCurrency(selTotalCost)}</div><div class="assets-v2-detail-stat-lbl">Costo Total</div></div>
+        <div class="assets-v2-detail-stat"><div class="assets-v2-detail-stat-val text-danger">${selFaults}</div><div class="assets-v2-detail-stat-lbl">Fallas</div></div>
+        <div class="assets-v2-detail-stat"><div class="assets-v2-detail-stat-val text-success">${sel.currentKm>0?fmtKm(sel.currentKm):fmtHours(sel.currentHours)}</div><div class="assets-v2-detail-stat-lbl">Medidor</div></div>
+      </div>
+      ${sel.notes?`<div class="assets-v2-detail-notes"><div class="assets-v2-detail-label">Observaciones</div><div class="assets-v2-detail-notes-text">${sel.notes}</div></div>`:''}
+      <div class="assets-v2-detail-actions">
+        <button class="btn btn-outline btn-sm" onclick="AssetsModule.viewDetail('${sel.id}')" aria-label="Ver detalle completo de ${sel.code}">👁️ Ver detalle completo</button>
+        ${canEdit?`<button class="btn btn-primary btn-sm" onclick="AssetsModule.openModal('${sel.id}')" aria-label="Editar ${sel.code}">✏️ Editar activo</button>`:''}
+      </div>
+      ` : `
+      <div class="assets-v2-panel-head"><h3>Ficha del Activo</h3></div>
+      <div class="empty-state assets-v2-panel-empty"><div class="empty-icon" aria-hidden="true">🚛</div><h3>Sin activo seleccionado</h3><p>No hay activos para mostrar.</p></div>
+      `}
+    </aside>
     </div>`;
   },
 
   renderCards(data) {
-    return `<div class="asset-cards-grid assets-card-grid">${data.map(a=>`
-    <div class="asset-card assets-card">
-      <div class="asset-card-header assets-card-header">
+    return `<div class="asset-cards-grid assets-card-grid assets-v2-cards-grid">${data.map(a=>`
+    <div class="asset-card assets-v2-card">
+      <div class="asset-card-header assets-v2-card-header">
         <div class="asset-type-icon" aria-hidden="true">${getAssetIcon(a.type)}</div>
         <div class="assets-card-heading">
-          <div class="asset-code assets-card-code">${a.code}</div>
+          <div class="asset-code assets-card-code assets-v2-card-code">${a.code}</div>
           <div class="asset-name"><span class="assets-card-brand">${a.brand}</span> <span class="assets-card-model">${a.model}</span></div>
         </div>
         <div class="asset-card-status">${statusBadge(a.status)}</div>
       </div>
-      <div class="asset-meta assets-card-meta">
+      <div class="asset-meta assets-card-meta assets-v2-card-meta">
         <div class="asset-meta-item"><div class="asset-meta-label">Tipo</div><div class="asset-meta-value">${a.type}</div></div>
         <div class="asset-meta-item"><div class="asset-meta-label">Año</div><div class="asset-meta-value">${a.year}</div></div>
         <div class="asset-meta-item"><div class="asset-meta-label">Placa</div><div class="asset-meta-value">${a.plate||'—'}</div></div>
@@ -228,9 +294,9 @@ const AssetsModule = {
         <div class="asset-meta-item"><div class="asset-meta-label">Localidad</div><div class="asset-meta-value">${a.localidad||'—'}</div></div>
         <div class="asset-meta-item"><div class="asset-meta-label">Depto.</div><div class="asset-meta-value">${a.departamento||'—'}</div></div>
       </div>
-      <div class="asset-card-footer assets-card-footer">
+      <div class="asset-card-footer assets-v2-card-footer">
         <div class="meter-info"><span aria-hidden="true">📍</span> ${a.responsible||'Sin responsable'}</div>
-        <div class="meter-value">${a.currentKm>0?fmtKm(a.currentKm):''}${a.currentHours>0?`${fmtHours(a.currentHours)}`:'—'}</div>
+        <div class="meter-value assets-v2-card-meter">${a.currentKm>0?fmtKm(a.currentKm):a.currentHours>0?fmtHours(a.currentHours):'—'}</div>
       </div>
     </div>`).join('')}</div>`;
   },
@@ -245,13 +311,22 @@ const AssetsModule = {
 
   toggleView() {
     this.view = this.view === 'table' ? 'cards' : 'table';
-    const btn = document.getElementById('btn-toggle-view');
-    if (btn) {
-      btn.textContent = this.view==='table'?'📋 Vista Tarjetas':'📊 Vista Tabla';
-      btn.setAttribute('aria-pressed', this.view==='cards' ? 'true' : 'false');
-      btn.setAttribute('aria-label', this.view==='table' ? 'Cambiar a vista de tarjetas' : 'Cambiar a vista de tabla');
-    }
+    const btnTable = document.getElementById('assets-view-table');
+    const btnCards = document.getElementById('assets-view-cards');
+    if (btnTable) btnTable.setAttribute('aria-pressed', this.view==='table' ? 'true' : 'false');
+    if (btnCards) btnCards.setAttribute('aria-pressed', this.view==='cards' ? 'true' : 'false');
     document.getElementById('assets-content').innerHTML = this.renderContent();
+  },
+
+  selectAsset(id) {
+    // V2 display-only selection: validate against real data, store in-memory hint,
+    // refresh only #assets-content through the existing pipeline. No persistence,
+    // no Supabase, no audit, no filter/pagination/modal change.
+    const exists = DB.getAssets().some(a=>a.id===id);
+    if (!exists) return;
+    this.selectedAssetId = id;
+    const host = document.getElementById('assets-content');
+    if (host) host.innerHTML = this.renderContent();
   },
 
   openModal(id = null) {
