@@ -42,7 +42,10 @@ const App = {
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.module === moduleId);
+      const isActive = el.dataset.module === moduleId;
+      el.classList.toggle('active', isActive);
+      if (isActive) { el.setAttribute('aria-current', 'page'); }
+      else { el.removeAttribute('aria-current'); }
     });
 
     // Update header title
@@ -135,8 +138,9 @@ const App = {
       if (!visibleItems.length) return;
       html += `<div class="nav-section-label">${sec.label}</div>`;
       visibleItems.forEach(item => {
+        const isActive = this.currentModule===item.id;
         html += `
-        <div class="nav-item ${this.currentModule===item.id?'active':''}" data-module="${item.id}" onclick="App.navigate('${item.id}')">
+        <div class="nav-item ${isActive?'active':''}" data-module="${item.id}" role="button" tabindex="0" aria-label="${item.label}" title="${item.label}" ${isActive?'aria-current="page"':''} onclick="App.navigate('${item.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.navigate('${item.id}')}">
           <span class="nav-icon">${item.icon}</span>
           <span class="nav-label">${item.label}</span>
         </div>`;
@@ -190,15 +194,23 @@ const App = {
     }
 
     // Toggle sidebar (desktop)
-    document.getElementById('btn-collapse-sidebar')?.addEventListener('click', () => {
+    document.getElementById('btn-collapse-sidebar')?.addEventListener('click', (e) => {
       const sb = document.getElementById('sidebar');
       sb.classList.toggle('collapsed');
+      const btn = e.currentTarget;
+      const collapsed = sb.classList.contains('collapsed');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.setAttribute('aria-label', collapsed ? 'Expandir menú' : 'Colapsar menú');
     });
 
     // Toggle sidebar (mobile)
-    document.getElementById('btn-toggle-sidebar-mobile')?.addEventListener('click', () => {
+    document.getElementById('btn-toggle-sidebar-mobile')?.addEventListener('click', (e) => {
       const sb = document.getElementById('sidebar');
       sb.classList.toggle('mobile-open');
+      const btn = e.currentTarget;
+      const open = sb.classList.contains('mobile-open');
+      btn.setAttribute('aria-expanded', String(open));
+      btn.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
     });
 
     // Alert panel toggle
@@ -231,8 +243,10 @@ const App = {
       if (window.innerWidth <= 768) {
         const sb = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('btn-toggle-sidebar-mobile');
-        if (sb?.classList.contains('mobile-open') && !sb.contains(e.target) && e.target !== toggleBtn) {
+        if (sb?.classList.contains('mobile-open') && !sb.contains(e.target) && e.target !== toggleBtn && !toggleBtn?.contains(e.target)) {
           sb.classList.remove('mobile-open');
+          toggleBtn?.setAttribute('aria-expanded', 'false');
+          toggleBtn?.setAttribute('aria-label', 'Abrir menú');
         }
       }
     });
