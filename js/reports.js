@@ -210,7 +210,7 @@ const ReportsModule = {
           ['En Mantenimiento',mnt,'registros filtrados','reports-v2-kpi--warning','🔧'],
           ['Fuera de Servicio',out,'registros filtrados','reports-v2-kpi--danger','🔴'],
         ].map(([l,v,c,m,i])=>`<div class="reports-v2-kpi ${m}"><div class="reports-v2-kpi-icon" aria-hidden="true">${i}</div><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
-        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--assets">` + this.tableHTML(['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Medidor'],
+        html = `<div class="reports-v2-table-wrap reports-v2-table--assets">` + this.tableHTML(['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Medidor'],
           data.map(a=>[a.code,a.type,a.brand,a.model,a.year,a.plate||'—',a.location||'—',a.status,a.currentKm>0?fmtKm(a.currentKm):fmtHours(a.currentHours)])) + `</div>`;
         break;
       }
@@ -224,7 +224,7 @@ const ReportsModule = {
           ['Activos Atendidos',prevAssets,'códigos distintos','reports-v2-kpi--info','🚛'],
           ['Servicio Frecuente',freqTop?freqTop[0]:'Sin datos',freqTop?`${freqTop[1]} ocurrencias`:'sin registros','reports-v2-kpi--warning','🔧'],
         ].map(([l,v,c,m,i])=>`<div class="reports-v2-kpi ${m}"><div class="reports-v2-kpi-icon" aria-hidden="true">${i}</div><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
-        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--preventive">` + this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Observaciones','Acciones'],
+        html = `<div class="reports-v2-table-wrap reports-v2-table--preventive">` + this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Observaciones','Acciones'],
           data.map(p=>[p.assetCode,p.type,fmtDate(p.lastDoneDate),p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours),DB.fmtCurrency(p.cost||0),p.techName||'—',{t:p.observations||'—',h:p.observations||'—',c:'reports-v2-obs'},
           Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deletePreventive('${p.id}')" title="Eliminar registro" aria-label="Eliminar registro preventivo de ${p.assetCode||'activo'}">🗑️</button>` : ''])) + `</div>`;
         break;
@@ -239,7 +239,7 @@ const ReportsModule = {
           ['Activos con Correctivos',corrAssets,'códigos distintos','reports-v2-kpi--info','🚛'],
           ['Categoría Frecuente',catTop?catTop[0]:'Sin datos',catTop?`${catTop[1]} ocurrencias`:'sin registros','reports-v2-kpi--brand','🏷️'],
         ].map(([l,v,c,m,i])=>`<div class="reports-v2-kpi ${m}"><div class="reports-v2-kpi-icon" aria-hidden="true">${i}</div><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
-        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--corrective">` + this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Observaciones','Costo Total','Acciones'],
+        html = `<div class="reports-v2-table-wrap reports-v2-table--corrective">` + this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Observaciones','Costo Total','Acciones'],
           data.map(c=>[c.assetCode,fmtDate(c.failureDate),c.failureCategory||'—',fmtHours(c.downtimeHours),c.provider||'—',{t:c.description||'—',h:c.description||'—',c:'reports-v2-obs'},DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0)),
           Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deleteCorrective('${c.id}')" title="Eliminar registro" aria-label="Eliminar registro correctivo de ${c.assetCode||'activo'}">🗑️</button>` : ''])) + `</div>`;
         break;
