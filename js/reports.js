@@ -42,41 +42,52 @@ const ReportsModule = {
       ${tabs.map(([id,label,count])=>`<button role="tab" aria-selected="${this.reportType===id}" class="reports-v2-tab ${this.reportType===id?'active':''}" onclick="ReportsModule.setType('${id}')">${label} <span class="reports-v2-tab-count">${count}</span></button>`).join('')}
     </div>
 
-    <!-- Filters -->
-    <div class="card mb-16 reports-v2-filter-card">
+    <!-- KPI region (filled by renderPreview; KPI cards render before filters) -->
+    <div id="reports-v2-kpi-region"></div>
+
+    ${this.reportType==='kpis' ? `
+    <!-- Export-only footer: KPIs category renders no filter surface -->
+    <div class="card mb-16 reports-v2-filter-card reports-v2-exportonly">
+      <div class="reports-v2-filter-hint text-sm text-muted">${hints[this.reportType]||''}</div>
+      <div class="flex-between mt-8 reports-v2-filter-footer" style="gap:10px">
+        <div class="text-sm text-muted reports-v2-result-count" role="status" id="rep-count"></div>
+        <div class="reports-v2-export-actions" style="display:flex;gap:10px">
+          <button class="btn btn-secondary" onclick="ReportsModule.exportExcel()">📥 Exportar Excel</button>
+          <button class="btn btn-primary" onclick="ReportsModule.exportPDF()">📄 Exportar PDF</button>
+        </div>
+      </div>
+    </div>` : `
+    <!-- Filters: only controls with real effect for the active category are rendered -->
+    <div class="card mb-16 reports-v2-filter-card reports-v2-filter-card--${this.reportType}">
       <div class="card-header">
         <div class="card-title">🔍 Filtros del Reporte</div>
       </div>
-      <div class="form-grid reports-v2-filter-grid">
-        <div class="form-group">
-          <label class="form-label">Fecha Desde</label>
-          <input class="form-control" type="date" id="rf-from" value="${this.filter.dateFrom}" onchange="ReportsModule.setFilter('dateFrom',this.value)">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Fecha Hasta</label>
-          <input class="form-control" type="date" id="rf-to" value="${this.filter.dateTo}" onchange="ReportsModule.setFilter('dateTo',this.value)">
-        </div>
+      <div class="form-grid reports-v2-filter-grid reports-v2-filter-grid--${this.reportType}">
+        ${(this.reportType==='assets' || this.reportType==='preventive' || this.reportType==='corrective') ? `
         <div class="form-group">
         <label class="form-label">Activo (búsqueda)</label>
         <input class="form-control" id="rf-asset" list="rf-assets-list" placeholder="Código, placa, marca o modelo..." value="${this.filter.asset}" oninput="ReportsModule.setFilter('asset',this.value)">
         <datalist id="rf-assets-list">
           ${DB.getAssets().map(a=>`<option value="${a.code}">${[a.plate,a.brand,a.model].filter(Boolean).join(' · ')||a.code}</option>`).join('')}
         </datalist>
-      </div>
+      </div>` : ''}
+        ${(this.reportType==='assets' || this.reportType==='preventive' || this.reportType==='corrective') ? `
       <div class="form-group">
         <label class="form-label">Planta</label>
         <select class="form-control" onchange="ReportsModule.setFilter('plant',this.value)">
             <option value="">Todas las plantas</option>
             ${['Planta Norte','Planta Sur','Bodega Central','Finca Sur'].map(p=>`<option ${this.filter.plant===p?'selected':''}>${p}</option>`).join('')}
           </select>
-        </div>
+        </div>` : ''}
+        ${this.reportType==='assets' ? `
         <div class="form-group">
           <label class="form-label">Tipo de Equipo</label>
           <select class="form-control" onchange="ReportsModule.setFilter('type',this.value)">
             <option value="">Todos los tipos</option>
             ${['Camión','Camioneta','Carro','Motocicleta','Montacarga','Cabezal','Remolque','Tractor','Generador','Equipo Industrial'].map(t=>`<option ${this.filter.type===t?'selected':''}>${t}</option>`).join('')}
           </select>
-        </div>
+        </div>` : ''}
+        ${(this.reportType==='assets' || this.reportType==='corrective') ? `
         <div class="form-group">
           <label class="form-label">Estado</label>
           <select class="form-control" onchange="ReportsModule.setFilter('status',this.value)">
@@ -87,11 +98,21 @@ const ReportsModule = {
             <option value="done">Completado</option>
             <option value="overdue">Vencido</option>
           </select>
-        </div>
+        </div>` : ''}
+        ${this.reportType==='assets' ? `
         <div class="form-group">
           <label class="form-label">Responsable</label>
           <input class="form-control" id="rf-resp" placeholder="Nombre..." onchange="ReportsModule.setFilter('responsible',this.value)">
+        </div>` : ''}
+        ${(this.reportType==='preventive' || this.reportType==='corrective') ? `
+        <div class="form-group">
+          <label class="form-label">Fecha Desde</label>
+          <input class="form-control" type="date" id="rf-from" value="${this.filter.dateFrom}" onchange="ReportsModule.setFilter('dateFrom',this.value)">
         </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Hasta</label>
+          <input class="form-control" type="date" id="rf-to" value="${this.filter.dateTo}" onchange="ReportsModule.setFilter('dateTo',this.value)">
+        </div>` : ''}
       </div>
       <div class="reports-v2-filter-hint text-sm text-muted">${hints[this.reportType]||''}</div>
       <div class="flex-between mt-8 reports-v2-filter-footer" style="gap:10px">
@@ -104,7 +125,7 @@ const ReportsModule = {
     </div>
 
     <!-- Report preview -->
-    <div class="card reports-v2-preview" id="report-preview"></div>`;
+    <div class="card reports-v2-preview" id="report-preview"></div>`}`;
   },
 
   setType(type) {
@@ -162,8 +183,6 @@ const ReportsModule = {
   },
 
   renderPreview() {
-    const el = document.getElementById('report-preview');
-    if (!el) return;
     const data = this.getFilteredData();
     const countEl = document.getElementById('rep-count');
     if (countEl) countEl.textContent = this.reportType==='kpis'
@@ -179,17 +198,18 @@ const ReportsModule = {
     const distinctCodes = (items) => [...new Set(items.map(i=>i.assetCode).filter(Boolean))].length;
 
     let html = '';
+    let kpiHtml = '';
     switch(this.reportType) {
       case 'assets': {
         const op = data.filter(a=>a.status==='operativo').length;
         const mnt = data.filter(a=>a.status==='mantenimiento').length;
         const out = data.filter(a=>a.status==='fuera').length;
-        const kpiHtml = `<div class="reports-v2-kpi-grid">${[
-          ['Total de Activos',data.length,'registros filtrados'],
-          ['Operativos',op,'registros filtrados'],
-          ['En Mantenimiento',mnt,'registros filtrados'],
-          ['Fuera de Servicio',out,'registros filtrados'],
-        ].map(([l,v,c])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
+        kpiHtml = `<div class="reports-v2-kpi-grid">${[
+          ['Total de Activos',data.length,'registros filtrados','reports-v2-kpi--brand','🗂️'],
+          ['Operativos',op,'registros filtrados','reports-v2-kpi--success','✅'],
+          ['En Mantenimiento',mnt,'registros filtrados','reports-v2-kpi--warning','🔧'],
+          ['Fuera de Servicio',out,'registros filtrados','reports-v2-kpi--danger','🔴'],
+        ].map(([l,v,c,m,i])=>`<div class="reports-v2-kpi ${m}"><div class="reports-v2-kpi-icon" aria-hidden="true">${i}</div><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
         html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--assets">` + this.tableHTML(['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Medidor'],
           data.map(a=>[a.code,a.type,a.brand,a.model,a.year,a.plate||'—',a.location||'—',a.status,a.currentKm>0?fmtKm(a.currentKm):fmtHours(a.currentHours)])) + `</div>`;
         break;
@@ -198,14 +218,14 @@ const ReportsModule = {
         const prevCost = data.reduce((s,p)=>s+(parseFloat(p.cost)||0),0);
         const prevAssets = distinctCodes(data);
         const freqTop = modeOf(data.map(p=>p.type));
-        const kpiHtml = `<div class="reports-v2-kpi-grid">${[
-          ['Registros Preventivos',data.length,'registros filtrados'],
-          ['Costo Preventivo',DB.fmtCurrency(prevCost),'suma de costos'],
-          ['Activos Atendidos',prevAssets,'códigos distintos'],
-          ['Servicio Frecuente',freqTop?freqTop[0]:'Sin datos',freqTop?`${freqTop[1]} ocurrencias`:'sin registros'],
-        ].map(([l,v,c])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
-        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--preventive">` + this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Acciones'],
-          data.map(p=>[p.assetCode,p.type,fmtDate(p.lastDoneDate),p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours),DB.fmtCurrency(p.cost||0),p.techName||'—',
+        kpiHtml = `<div class="reports-v2-kpi-grid">${[
+          ['Registros Preventivos',data.length,'registros filtrados','reports-v2-kpi--brand','📋'],
+          ['Costo Preventivo',DB.fmtCurrency(prevCost),'suma de costos','reports-v2-kpi--success','💰'],
+          ['Activos Atendidos',prevAssets,'códigos distintos','reports-v2-kpi--info','🚛'],
+          ['Servicio Frecuente',freqTop?freqTop[0]:'Sin datos',freqTop?`${freqTop[1]} ocurrencias`:'sin registros','reports-v2-kpi--warning','🔧'],
+        ].map(([l,v,c,m,i])=>`<div class="reports-v2-kpi ${m}"><div class="reports-v2-kpi-icon" aria-hidden="true">${i}</div><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
+        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--preventive">` + this.tableHTML(['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Observaciones','Acciones'],
+          data.map(p=>[p.assetCode,p.type,fmtDate(p.lastDoneDate),p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours),DB.fmtCurrency(p.cost||0),p.techName||'—',{t:p.observations||'—',h:p.observations||'—',c:'reports-v2-obs'},
           Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deletePreventive('${p.id}')" title="Eliminar registro" aria-label="Eliminar registro preventivo de ${p.assetCode||'activo'}">🗑️</button>` : ''])) + `</div>`;
         break;
       }
@@ -213,21 +233,21 @@ const ReportsModule = {
         const corrCost = data.reduce((s,c)=>s+(parseFloat(c.laborCost)||0)+(parseFloat(c.partsCost)||0),0);
         const corrAssets = distinctCodes(data);
         const catTop = modeOf(data.map(c=>c.failureCategory));
-        const kpiHtml = `<div class="reports-v2-kpi-grid">${[
-          ['Registros Correctivos',data.length,'registros filtrados'],
-          ['Costo Correctivo',DB.fmtCurrency(corrCost),'mano de obra más repuestos'],
-          ['Activos con Correctivos',corrAssets,'códigos distintos'],
-          ['Categoría Frecuente',catTop?catTop[0]:'Sin datos',catTop?`${catTop[1]} ocurrencias`:'sin registros'],
-        ].map(([l,v,c])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
-        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--corrective">` + this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Costo Total','Acciones'],
-          data.map(c=>[c.assetCode,fmtDate(c.failureDate),c.failureCategory||'—',fmtHours(c.downtimeHours),c.provider||'—',DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0)),
+        kpiHtml = `<div class="reports-v2-kpi-grid">${[
+          ['Registros Correctivos',data.length,'registros filtrados','reports-v2-kpi--danger','📋'],
+          ['Costo Correctivo',DB.fmtCurrency(corrCost),'mano de obra más repuestos','reports-v2-kpi--warning','💰'],
+          ['Activos con Correctivos',corrAssets,'códigos distintos','reports-v2-kpi--info','🚛'],
+          ['Categoría Frecuente',catTop?catTop[0]:'Sin datos',catTop?`${catTop[1]} ocurrencias`:'sin registros','reports-v2-kpi--brand','🏷️'],
+        ].map(([l,v,c,m,i])=>`<div class="reports-v2-kpi ${m}"><div class="reports-v2-kpi-icon" aria-hidden="true">${i}</div><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
+        html = kpiHtml + `<div class="reports-v2-table-wrap reports-v2-table--corrective">` + this.tableHTML(['Activo','Fecha','Categoría','Tiempo Muerto','Proveedor','Observaciones','Costo Total','Acciones'],
+          data.map(c=>[c.assetCode,fmtDate(c.failureDate),c.failureCategory||'—',fmtHours(c.downtimeHours),c.provider||'—',{t:c.description||'—',h:c.description||'—',c:'reports-v2-obs'},DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0)),
           Auth.canDelete('maintenance') ? `<button class="btn btn-outline btn-icon btn-sm text-danger" style="border-color:var(--danger)" onclick="ReportsModule.deleteCorrective('${c.id}')" title="Eliminar registro" aria-label="Eliminar registro correctivo de ${c.assetCode||'activo'}">🗑️</button>` : ''])) + `</div>`;
         break;
       }
       case 'kpis':
         const kpis = data[0]||{};
         const cur = DB.getCurrencySymbol(DB.getSettings().currency);
-        html = `<div class="reports-v2-kpis-global">Indicadores globales (sin filtros aplicados)</div>
+        kpiHtml = `<div class="reports-v2-kpis-global">Indicadores globales (sin filtros aplicados)</div>
         <div class="reports-v2-kpi-grid reports-v2-kpi-grid--global">
           ${[
             ['Disponibilidad',`${kpis.disponibilidad}%`],
@@ -241,18 +261,28 @@ const ReportsModule = {
             ['Costo/Hora',`${cur} ${kpis.costPerHr}`],
           ].map(([l,v])=>`<div class="reports-v2-kpi"><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div></div>`).join('')}
         </div>`;
+        html = '';
         break;
     }
+    const kpiHost = document.getElementById('reports-v2-kpi-region');
+    if (kpiHost) kpiHost.innerHTML = kpiHtml;
+    const el = document.getElementById('report-preview');
+    if (!el) return;
     el.innerHTML = html || '<div class="empty-state reports-v2-empty"><div class="empty-icon" aria-hidden="true">📄</div><h3>Sin datos</h3></div>';
   },
 
   tableHTML(headers, rows) {
     if (rows.length === 0) return '<div class="empty-state reports-v2-empty"><div class="empty-icon" aria-hidden="true">📋</div><h3>Sin datos con los filtros aplicados</h3></div>';
+    // Cells may be plain strings (wrapped exactly as before) or {t:title,h:html,c:class}
+    // descriptors used only for the verified Observaciones cells.
     return `
     <div class="table-wrapper reports-v2-table-shell">
       <table class="reports-v2-table">
         <thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead>
-        <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c||'—'}</td>`).join('')}</tr>`).join('')}</tbody>
+        <tbody>${rows.map(r=>`<tr>${r.map(c=>{
+          if (c && typeof c==='object') return `<td${c.c?` class="${c.c}"`:''}${c.t?` title="${c.t}"`:''}>${c.h||'—'}</td>`;
+          return `<td>${c||'—'}</td>`;
+        }).join('')}</tr>`).join('')}</tbody>
       </table>
     </div>`;
   },
@@ -301,12 +331,12 @@ const ReportsModule = {
         rows = data.map(a=>[a.code,a.type,a.brand,a.model,a.year,a.plate,a.serial,a.location,a.responsible,a.status]);
         break;
       case 'preventive':
-        headers = ['Activo','Servicio','Fecha de Servicio','Medidor','Costo','Técnico','Planta'];
-        rows = data.map(p=>[p.assetCode,p.type,p.lastDoneDate,p.lastDoneKm||p.lastDoneHours,p.cost,p.techName,p.plant]);
+        headers = ['Activo','Servicio','Fecha de Servicio','Medidor','Costo','Técnico','Observaciones','Planta'];
+        rows = data.map(p=>[p.assetCode,p.type,p.lastDoneDate,p.lastDoneKm||p.lastDoneHours,p.cost,p.techName,p.observations,p.plant]);
         break;
       case 'corrective':
-        headers = ['Activo','Fecha Falla','Categoría','Descripción','Tiempo Muerto','Fecha Reparación','Proveedor','Costo MO','Costo Repuestos','Costo Total'];
-        rows = data.map(c=>[c.assetCode,c.failureDate,c.failureCategory,c.description,c.downtimeHours,c.repairDate,c.provider,c.laborCost,c.partsCost,c.totalCost]);
+        headers = ['Activo','Fecha Falla','Categoría','Tiempo Muerto','Fecha Reparación','Proveedor','Observaciones','Costo MO','Costo Repuestos','Costo Total'];
+        rows = data.map(c=>[c.assetCode,c.failureDate,c.failureCategory,c.downtimeHours,c.repairDate,c.provider,c.description,c.laborCost,c.partsCost,c.totalCost]);
         break;
       default:
         headers = ['KPI','Valor'];
@@ -345,14 +375,14 @@ const ReportsModule = {
         break;
       case 'preventive':
         tableHtml = `<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
-          <thead><tr style="background:#1a56db;color:#fff">${['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Planta'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>${data.map(p=>`<tr><td>${p.assetCode}</td><td>${p.type}</td><td>${fmtDate(p.lastDoneDate)}</td><td>${p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours)}</td><td>${DB.fmtCurrency(p.cost||0)}</td><td>${p.techName||'—'}</td><td>${p.plant||'—'}</td></tr>`).join('')}</tbody>
+          <thead><tr style="background:#1a56db;color:#fff">${['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Observaciones','Planta'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${data.map(p=>`<tr><td>${p.assetCode}</td><td>${p.type}</td><td>${fmtDate(p.lastDoneDate)}</td><td>${p.lastDoneKm?fmtKm(p.lastDoneKm):fmtHours(p.lastDoneHours)}</td><td>${DB.fmtCurrency(p.cost||0)}</td><td>${p.techName||'—'}</td><td>${p.observations||'—'}</td><td>${p.plant||'—'}</td></tr>`).join('')}</tbody>
         </table>`;
         break;
       case 'corrective':
         tableHtml = `<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
-          <thead><tr style="background:#1a56db;color:#fff">${['Activo','Fecha Falla','Categoría','Tiempo Muerto','Proveedor','Costo Total'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>${data.map(c=>`<tr><td>${c.assetCode}</td><td>${fmtDate(c.failureDate)}</td><td>${c.failureCategory||'—'}</td><td>${fmtHours(c.downtimeHours)}</td><td>${c.provider||'—'}</td><td>${DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0))}</td></tr>`).join('')}</tbody>
+          <thead><tr style="background:#1a56db;color:#fff">${['Activo','Fecha Falla','Categoría','Tiempo Muerto','Proveedor','Observaciones','Costo Total'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${data.map(c=>`<tr><td>${c.assetCode}</td><td>${fmtDate(c.failureDate)}</td><td>${c.failureCategory||'—'}</td><td>${fmtHours(c.downtimeHours)}</td><td>${c.provider||'—'}</td><td>${c.description||'—'}</td><td>${DB.fmtCurrency((c.laborCost||0)+(c.partsCost||0))}</td></tr>`).join('')}</tbody>
         </table>`;
         break;
       case 'kpis': {

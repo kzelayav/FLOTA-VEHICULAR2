@@ -1031,3 +1031,62 @@
 .reports-v2-table td:first-child { font-weight: 600; }
 .reports-v2-table--assets td:nth-child(8) { font-weight: 600; }
 .reports-v2-empty { padding: 48px 20px; }
+
+/* ====================================================
+   REPORTS VISUAL V2.1 CORRECTIONS (report-scoped)
+   Category grids, footer grouping, KPI hierarchy,
+   observation cells. Tokens only.
+   ==================================================== */
+
+/* ── Category-specific filter grids ── */
+.reports-v2-filter-grid--assets {
+  grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(150px, 1fr));
+}
+.reports-v2-filter-grid--preventive {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+.reports-v2-filter-grid--corrective {
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+}
+
+/* ── Filter footer: count+hint left, natural-width exports right ── */
+.reports-v2-filter-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.reports-v2-export-actions { flex: 0 0 auto; }
+.reports-v2-export-actions .btn {
+  flex: none;
+  width: auto;
+}
+
+/* ── KPI hierarchy: icon, accents, consistent height ── */
+.reports-v2-kpi { min-height: 150px; }
+.reports-v2-kpi-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-primary);
+  margin-bottom: 10px;
+}
+.reports-v2-kpi--success::before { background: var(--status-success); }
+.reports-v2-kpi--warning::before { background: var(--status-warning); }
+.reports-v2-kpi--danger::before { background: var(--status-danger); }
+.reports-v2-kpi--info::before { background: var(--status-info); }
+
+/* ── Observation cells: controlled width, ellipsis, full title ── */
+.reports-v2-table--preventive,
+.reports-v2-table--corrective {
+  min-width: 840px;
+}
+.reports-v2-table--preventive td.reports-v2-obs,
+.reports-v2-table--corrective td.reports-v2-obs {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

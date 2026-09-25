@@ -517,3 +517,39 @@
   .reports-v2-export-actions { flex-direction: column; align-items: stretch; }
   .reports-v2-export-actions .btn { width: 100%; }
 }
+
+/* ====================================================
+   REPORTS VISUAL V2.1 RESPONSIVE (report-scoped only)
+   ==================================================== */
+
+/* ── Above 1200px: category grids hold one compact row ── */
+@media (min-width: 1201px) {
+  .reports-v2-filter-grid--assets { grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(150px, 1fr)); }
+  .reports-v2-filter-grid--preventive { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+  .reports-v2-filter-grid--corrective { grid-template-columns: repeat(5, minmax(130px, 1fr)); }
+  .reports-v2-filter-footer { flex-direction: row; }
+  .reports-v2-export-actions .btn { flex: none; width: auto; }
+}
+
+/* ── 901–1200px: category grids wrap to two or three columns ── */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .reports-v2-filter-grid--assets,
+  .reports-v2-filter-grid--preventive,
+  .reports-v2-filter-grid--corrective { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reports-v2-filter-footer { flex-wrap: wrap; }
+  .reports-v2-export-actions .btn { flex: none; width: auto; }
+}
+
+/* ── 769–900px: two-column category grids ── */
+@media (max-width: 900px) and (min-width: 769px) {
+  .reports-v2-filter-grid--assets,
+  .reports-v2-filter-grid--preventive,
+  .reports-v2-filter-grid--corrective { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── ≤768px: one-column filters, stacked footer, full-width exports ── */
+@media (max-width: 768px) {
+  .reports-v2-filter-grid--assets,
+  .reports-v2-filter-grid--preventive,
+  .reports-v2-filter-grid--corrective { grid-template-columns: 1fr; }
+}
