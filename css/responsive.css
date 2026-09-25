@@ -524,7 +524,7 @@
 
 /* ── Above 1200px: category grids hold one compact row ── */
 @media (min-width: 1201px) {
-  .reports-v2-filter-grid--assets { grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(150px, 1fr)); }
+  .reports-v2-filter-grid--assets { grid-template-columns: minmax(260px, 2fr) repeat(5, minmax(150px, 1fr)); }
   .reports-v2-filter-grid--preventive { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
   .reports-v2-filter-grid--corrective { grid-template-columns: repeat(5, minmax(130px, 1fr)); }
   .reports-v2-filter-footer { flex-direction: row; }

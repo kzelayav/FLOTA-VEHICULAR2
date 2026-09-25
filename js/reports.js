@@ -3,7 +3,7 @@
    ==================================================== */
 
 const ReportsModule = {
-  filter: { dateFrom:'', dateTo:'', plant:'', type:'', responsible:'', status:'', asset:'' },
+  filter: { dateFrom:'', dateTo:'', plant:'', type:'', responsible:'', status:'', asset:'', costMonth:'' },
   reportType: 'assets',
 
   render() {
@@ -104,6 +104,14 @@ const ReportsModule = {
           <label class="form-label">Responsable</label>
           <input class="form-control" id="rf-resp" placeholder="Nombre..." onchange="ReportsModule.setFilter('responsible',this.value)">
         </div>` : ''}
+        ${this.reportType==='assets' ? `
+        <div class="form-group">
+          <label class="form-label" for="rf-cost-month">Período de Costos</label>
+          <select class="form-control" id="rf-cost-month" onchange="ReportsModule.setFilter('costMonth',this.value)">
+            <option value="">Total histórico</option>
+            ${this._costMonthOptions().map(m=>`<option value="${m}" ${this.filter.costMonth===m?'selected':''}>${this._costMonthLabel(m)}</option>`).join('')}
+          </select>
+        </div>` : ''}
         ${(this.reportType==='preventive' || this.reportType==='corrective') ? `
         <div class="form-group">
           <label class="form-label">Fecha Desde</label>
@@ -114,7 +122,7 @@ const ReportsModule = {
           <input class="form-control" type="date" id="rf-to" value="${this.filter.dateTo}" onchange="ReportsModule.setFilter('dateTo',this.value)">
         </div>` : ''}
       </div>
-      <div class="reports-v2-filter-hint text-sm text-muted">${hints[this.reportType]||''}</div>
+      <div class="reports-v2-filter-hint text-sm text-muted">${hints[this.reportType]||''}${this.reportType==='assets' ? ` · Período de Costos: ${this._costMonthLabel(this.filter.costMonth)}` : ''}</div>
       <div class="flex-between mt-8 reports-v2-filter-footer" style="gap:10px">
         <div class="text-sm text-muted reports-v2-result-count" role="status" id="rep-count"></div>
         <div class="reports-v2-export-actions" style="display:flex;gap:10px">
@@ -140,6 +148,95 @@ const ReportsModule = {
 
   init() {
     this.renderPreview();
+  },
+
+  _costMonthOptions() {
+    const months = new Set();
+    const addDate = (d) => {
+      if (!d || typeof d !== 'string') return;
+      const t = d.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return;
+      const parsed = DB._parseLocalDate ? DB._parseLocalDate(t) : null;
+      if (!parsed) return;
+      months.add(t.substring(0, 7));
+    };
+    DB.getPreventive().forEach(p => addDate(p.lastDoneDate));
+    DB.getCorrective().forEach(c => addDate(c.failureDate));
+    return [...months].sort().reverse();
+  },
+
+  _costMonthLabel(costMonth) {
+    if (!costMonth) return 'Total histórico';
+    const m = /^(\d{4})-(\d{2})$/.exec(costMonth || '');
+    if (!m) return 'Total histórico';
+    const names = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const idx = parseInt(m[2], 10) - 1;
+    if (idx < 0 || idx > 11) return 'Total histórico';
+    return `${names[idx]} ${m[1]}`;
+  },
+
+  _assetMaintenanceCostMap(costMonth) {
+    const assets = DB.getAssets();
+    const byId = new Map();
+    const byCode = new Map();
+    assets.forEach(a => {
+      if (a && a.id) byId.set(String(a.id), a);
+      if (a && a.code && typeof a.code === 'string') {
+        const k = a.code.trim().toLowerCase();
+        if (k && !byCode.has(k)) byCode.set(k, a);
+      }
+    });
+    const map = new Map();
+    assets.forEach(a => {
+      if (a && a.id) map.set(String(a.id), { preventiveCost: 0, correctiveCost: 0, totalMaintenanceCost: 0 });
+    });
+    const isHistorical = !costMonth;
+    let ym = null;
+    if (!isHistorical) {
+      const m = /^(\d{4})-(\d{2})$/.exec(costMonth || '');
+      if (!m) return map;
+      ym = { y: parseInt(m[1], 10), mo: parseInt(m[2], 10) };
+      if (!(ym.mo >= 1 && ym.mo <= 12)) return map;
+    }
+    const inMonth = (dateStr) => {
+      if (!dateStr || typeof dateStr !== 'string') return false;
+      const t = dateStr.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return false;
+      const d = DB._parseLocalDate(t);
+      if (!d) return false;
+      return d.getFullYear() === ym.y && (d.getMonth() + 1) === ym.mo;
+    };
+    const resolveAsset = (r) => {
+      if (r && r.assetId && byId.has(String(r.assetId))) return byId.get(String(r.assetId));
+      const code = r && typeof r.assetCode === 'string' ? r.assetCode.trim().toLowerCase() : '';
+      if (code && byCode.has(code)) return byCode.get(code);
+      return null;
+    };
+    DB.getPreventive().forEach(p => {
+      const a = resolveAsset(p);
+      if (!a || !map.has(String(a.id))) return;
+      if (!isHistorical && !inMonth(p.lastDoneDate)) return;
+      const ev = DB.getMaintenanceCost(p);
+      const v = ev && ev.isIncluded ? ev.value : 0;
+      if (!Number.isFinite(v)) return;
+      const e = map.get(String(a.id));
+      const add = Number.isFinite(v) ? v : 0;
+      e.preventiveCost += add;
+      e.totalMaintenanceCost += add;
+    });
+    DB.getCorrective().forEach(c => {
+      const a = resolveAsset(c);
+      if (!a || !map.has(String(a.id))) return;
+      if (!isHistorical && !inMonth(c.failureDate)) return;
+      const ev = DB.getMaintenanceCost(c);
+      const v = ev && ev.isIncluded ? ev.value : 0;
+      if (!Number.isFinite(v)) return;
+      const e = map.get(String(a.id));
+      const add = Number.isFinite(v) ? v : 0;
+      e.correctiveCost += add;
+      e.totalMaintenanceCost += add;
+    });
+    return map;
   },
 
   getFilteredData() {
@@ -210,8 +307,9 @@ const ReportsModule = {
           ['En Mantenimiento',mnt,'registros filtrados','reports-v2-kpi--warning','🔧'],
           ['Fuera de Servicio',out,'registros filtrados','reports-v2-kpi--danger','🔴'],
         ].map(([l,v,c,m,i])=>`<div class="reports-v2-kpi ${m}"><div class="reports-v2-kpi-icon" aria-hidden="true">${i}</div><div class="reports-v2-kpi-value">${v}</div><div class="reports-v2-kpi-label">${l}</div><div class="reports-v2-kpi-context">${c}</div></div>`).join('')}</div>`;
-        html = `<div class="reports-v2-table-wrap reports-v2-table--assets">` + this.tableHTML(['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Medidor'],
-          data.map(a=>[a.code,a.type,a.brand,a.model,a.year,a.plate||'—',a.location||'—',a.status,a.currentKm>0?fmtKm(a.currentKm):fmtHours(a.currentHours)])) + `</div>`;
+        const costMap = this._assetMaintenanceCostMap(this.filter.costMonth);
+        html = `<div class="reports-v2-table-wrap reports-v2-table--assets">` + this.tableHTML(['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Medidor','Gasto de Mantenimiento'],
+          data.map(a=>{ const e = costMap.get(String(a.id)); const v = e ? e.totalMaintenanceCost : 0; const h = DB.fmtCurrency(v); return [a.code,a.type,a.brand,a.model,a.year,a.plate||'—',a.location||'—',a.status,a.currentKm>0?fmtKm(a.currentKm):fmtHours(a.currentHours),{t:`Gasto de Mantenimiento: ${h}`,h,c:'reports-v2-cost'}]; })) + `</div>`;
         break;
       }
       case 'preventive': {
@@ -326,10 +424,12 @@ const ReportsModule = {
     if (!data.length) { showToast('Sin datos para exportar','error'); return; }
     let headers, rows;
     switch(this.reportType) {
-      case 'assets':
-        headers = ['Código','Tipo','Marca','Modelo','Año','Placa','Serie','Ubicación','Responsable','Estado'];
-        rows = data.map(a=>[a.code,a.type,a.brand,a.model,a.year,a.plate,a.serial,a.location,a.responsible,a.status]);
+      case 'assets': {
+        const costMap = this._assetMaintenanceCostMap(this.filter.costMonth);
+        headers = ['Código','Tipo','Marca','Modelo','Año','Placa','Serie','Ubicación','Responsable','Estado','Gasto de Mantenimiento'];
+        rows = data.map(a=>{ const e = costMap.get(String(a.id)); const v = e ? e.totalMaintenanceCost : 0; return [a.code,a.type,a.brand,a.model,a.year,a.plate,a.serial,a.location,a.responsible,a.status,Number.isFinite(v) ? v : 0]; });
         break;
+      }
       case 'preventive':
         headers = ['Activo','Servicio','Fecha de Servicio','Medidor','Costo','Técnico','Observaciones','Planta'];
         rows = data.map(p=>[p.assetCode,p.type,p.lastDoneDate,p.lastDoneKm||p.lastDoneHours,p.cost,p.techName,p.observations,p.plant]);
@@ -367,12 +467,14 @@ const ReportsModule = {
     let tableHtml = '';
 
     switch(this.reportType) {
-      case 'assets':
+      case 'assets': {
+        const costMap = this._assetMaintenanceCostMap(this.filter.costMonth);
         tableHtml = `<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
-          <thead><tr style="background:#1a56db;color:#fff">${['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>${data.map(a=>`<tr><td>${a.code}</td><td>${a.type}</td><td>${a.brand}</td><td>${a.model}</td><td>${a.year}</td><td>${a.plate||'—'}</td><td>${a.location||'—'}</td><td>${a.status}</td></tr>`).join('')}</tbody>
+          <thead><tr style="background:#1a56db;color:#fff">${['Código','Tipo','Marca','Modelo','Año','Placa','Ubicación','Estado','Gasto de Mantenimiento'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${data.map(a=>{ const e = costMap.get(String(a.id)); const v = e ? e.totalMaintenanceCost : 0; return `<tr><td>${a.code}</td><td>${a.type}</td><td>${a.brand}</td><td>${a.model}</td><td>${a.year}</td><td>${a.plate||'—'}</td><td>${a.location||'—'}</td><td>${a.status}</td><td style="text-align:right">${DB.fmtCurrency(v)}</td></tr>`; }).join('')}</tbody>
         </table>`;
         break;
+      }
       case 'preventive':
         tableHtml = `<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
           <thead><tr style="background:#1a56db;color:#fff">${['Activo','Servicio','Fecha','Medidor','Costo','Técnico','Observaciones','Planta'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>

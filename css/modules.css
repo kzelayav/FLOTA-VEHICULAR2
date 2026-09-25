@@ -1030,6 +1030,12 @@
 .reports-v2-table tbody tr:hover { background: var(--table-row-hover); }
 .reports-v2-table td:first-child { font-weight: 600; }
 .reports-v2-table--assets td:nth-child(8) { font-weight: 600; }
+.reports-v2-table--assets { min-width: 960px; }
+.reports-v2-cost {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .reports-v2-empty { padding: 48px 20px; }
 
 /* ====================================================
@@ -1040,7 +1046,14 @@
 
 /* ── Category-specific filter grids ── */
 .reports-v2-filter-grid--assets {
-  grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(150px, 1fr));
+  grid-template-columns: minmax(260px, 2fr) repeat(5, minmax(150px, 1fr));
+}
+.reports-v2-filter-grid--assets .form-group {
+  min-width: 0;
+}
+.reports-v2-filter-grid--assets .form-control {
+  width: 100%;
+  min-width: 0;
 }
 .reports-v2-filter-grid--preventive {
   grid-template-columns: repeat(4, minmax(150px, 1fr));
